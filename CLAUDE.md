@@ -14,6 +14,8 @@ and conventions come from `~/project/github/eexif` (desktop) and `~/project/repe
 - Do not add features that were not asked for; ask in one sentence instead.
 - Commits: at the end of each phase and for notable fixes, with a message that
   explains why (the history doubles as documentation).
+- No `Co-Authored-By` line in commit messages (GitHub would count every commit
+  fully for both authors).
 - The repo must not mention the earlier web version of this tool (its language,
   name or paths): this project stands on its own.
 
