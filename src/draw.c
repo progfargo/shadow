@@ -108,10 +108,9 @@ void shadow_triangle(float x1, float y1, float x2, float y2, float x3, float y3,
 }
 
 /* Text with its anchor at (x, y): align 0 = start, 1 = middle, 2 = end;
- * valign 0 = y is the baseline, 1 = y is the middle of the line.
- * rot is degrees clockwise around the anchor (only 0 and ±90 are used). */
+ * valign 0 = y is the baseline, 1 = y is the middle of the line. */
 void shadow_text(float x, float y, const char * text, const lv_font_t * font, uint32_t rgb, uint8_t opa, int align,
-                 int valign, float rot)
+                 int valign)
 {
     lv_draw_label_dsc_t d;
     lv_draw_label_dsc_init(&d);
@@ -130,7 +129,6 @@ void shadow_text(float x, float y, const char * text, const lv_font_t * font, ui
     if (align == 1) left = (int32_t)(x - size.x / 2.0f + 0.5f);
     if (align == 2) left = (int32_t)(x - size.x + 0.5f);
     lv_area_t a = { left, top, left + size.x, top + line_h - 1 };
-    if (rot != 0) d.rotation = (int32_t)(rot * 10);
     lv_draw_label(&layer, &d, &a);
 }
 
@@ -146,4 +144,16 @@ void shadow_canvas_fill(lv_obj_t * canvas, uint32_t rgb)
 void shadow_canvas_detach(lv_obj_t * canvas)
 {
     ((lv_canvas_t *)canvas)->draw_buf = NULL;
+}
+
+/* Width of a text, its line height and the height above the baseline, in
+ * pixels (LVGL rotates each glyph on its own, so turned text is drawn
+ * flat on a small canvas and turned pixel by pixel). */
+void shadow_text_metrics(const char * text, const lv_font_t * font, int32_t * width, int32_t * line_h, int32_t * ascent)
+{
+    lv_point_t size;
+    lv_text_get_size(&size, text, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    *width = size.x;
+    *line_h = lv_font_get_line_height(font);
+    *ascent = *line_h - font->base_line;
 }

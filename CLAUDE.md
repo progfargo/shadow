@@ -52,8 +52,16 @@ and conventions come from `~/project/github/eexif` (desktop) and `~/project/repe
   suggestions, information under the drawing, picture loading.
 - `src/views.zig`: the drawings: Image, Film, Light (lamp), with the glass, labels and
   scale bar drawn over the computed pixels.
+- `src/parts_view.zig`: the parts drawing on screen, from the same list of shapes as
+  the SVG, with the SVG classes' styles (wood hatching computed per circle/rectangle).
+- `src/export.zig`: saved files. Print PNG (actual size, cut border, labels, 50 mm
+  bar, cable mark; drawn on a hidden canvas), laser PNG (plain gray pattern; black =
+  laser fires), the same inside an SVG with its size in mm, parts SVG. PNGs carry
+  the dpi (pHYs). The extension is added when the name has none.
 - `src/canvas.zig` + `src/draw.c`: an LVGL canvas with its own pixel buffer; shapes and
   text go through C because LVGL's draw descriptors have bit fields (opaque in Zig).
+  LVGL turns each glyph on its own, so upward text (`textUpward`) is drawn flat on a
+  small canvas and its pixels are turned and blended in.
 - `src/picture.zig` + `src/image.c`: picture files (stb_image), resampling, the
   brightness grid the calculation reads; PNG writing (stb_image_write).
 - `src/demo.zig`: the sample pictures, drawn on a hidden canvas.

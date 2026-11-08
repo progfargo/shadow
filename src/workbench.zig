@@ -26,6 +26,8 @@ const st = @import("style.zig");
 const dp = st.dp;
 const cv = @import("canvas.zig");
 const views = @import("views.zig");
+const parts_view = @import("parts_view.zig");
+pub const exporter = @import("export.zig");
 const demo = @import("demo.zig");
 const dialogs = @import("dialogs.zig");
 const pic = @import("picture.zig");
@@ -219,7 +221,14 @@ var timer: ?*lv.lv_timer_t = null;
 pub const Refs = struct {
     apply_suggested_btn: ?*lv.lv_obj_t = null,
     canvas: ?*lv.lv_obj_t = null,
+    save_png_btn: ?*lv.lv_obj_t = null,
+    save_svg_btn: ?*lv.lv_obj_t = null,
+    save_parts_btn: ?*lv.lv_obj_t = null,
 };
+/// Size of the drawing area the canvas was last drawn for
+var drawn_for: [2]i32 = .{ 0, 0 };
+/// What the open save dialog is for
+var pending_save: exporter.Kind = .film_png;
 pub var refs: Refs = .{};
 /// Last status text (for the in-app test)
 pub var status_buf: [256]u8 = undefined;
@@ -287,6 +296,19 @@ pub fn show(product: Product, pg: Page, frame: Frame) !void {
             const hint = st.muted(frame.toolbar, "Ctrl + drag: move the glass over the image");
             lv.lv_obj_set_width(hint, lv.LV_SIZE_CONTENT);
             lv.lv_obj_move_to_index(hint, 0);
+        },
+        .film => {
+            refs.save_png_btn = st.button(frame.toolbar, exporter.pngButtonLabel(b), onSave, @ptrFromInt(1 + @as(usize, @intFromEnum(exporter.Kind.film_png))));
+            refs.save_svg_btn = st.outlineButton(frame.toolbar, lv.LV_SYMBOL_SAVE ++ "  Save SVG (actual size)", onSave, @ptrFromInt(1 + @as(usize, @intFromEnum(exporter.Kind.film_svg))));
+            lv.lv_obj_move_to_index(refs.save_png_btn, 0);
+            lv.lv_obj_move_to_index(refs.save_svg_btn, 1);
+        },
+        .parts => {
+            refs.save_parts_btn = st.button(frame.toolbar, lv.LV_SYMBOL_SAVE ++ "  Save parts drawing (SVG, 1:1)", onSave, @ptrFromInt(1 + @as(usize, @intFromEnum(exporter.Kind.parts_svg))));
+            lv.lv_obj_move_to_index(refs.save_parts_btn, 0);
+            // The drawing is white paper and scrolls when it is taller than the view
+            lv.lv_obj_set_style_bg_color(frame.view, lv.lv_color_white(), 0);
+            lv.lv_obj_set_scrollable(frame.view, true);
         },
         else => {},
     }
@@ -361,6 +383,8 @@ pub fn render() void {
     const b = cur orelse return;
     if (b.computedFilm() == null) return;
     const sz = viewSize();
+    drawn_for = sz;
+    if (page == .parts) return renderParts(b, sz);
     canvas.resize(sz[0], sz[1]) catch return;
     lv.lv_obj_center(canvas.obj);
     const result = switch (page) {
@@ -370,6 +394,19 @@ pub fn render() void {
         .parts, .start => drawEmpty(),
     };
     result catch |e| setStatus("Cannot draw: {s}", .{@errorName(e)});
+    canvas.invalidate();
+}
+
+/// The parts drawing fills the width (at least readable size) and scrolls.
+fn renderParts(b: *const Bench, sz: [2]i32) void {
+    const p = b.lampParams();
+    var d = core.parts.partsDrawing(gpa, &p) catch |e| return setStatus("Cannot draw: {s}", .{@errorName(e)});
+    defer d.deinit();
+    // leave room for the vertical scrollbar
+    const avail: f64 = @floatFromInt(@max(100, sz[0] - dp(12)));
+    const sc = @max(avail / d.w, parts_view.min_scale);
+    canvas.resize(@intFromFloat(@ceil(d.w * sc)), @intFromFloat(@ceil(d.h * sc))) catch return;
+    parts_view.draw(&canvas, &d, sc) catch |e| setStatus("Cannot draw: {s}", .{@errorName(e)});
     canvas.invalidate();
 }
 
@@ -400,6 +437,9 @@ pub fn changed(id: Id, text: []const u8) void {
         else => {},
     }
     settings.sync(&b.vals);
+    if (id == .surface) {
+        if (refs.save_png_btn) |btn| lv.lv_label_set_text(lv.lv_obj_get_child(btn, 0), exporter.pngButtonLabel(b));
+    }
     const f = settings.field(id);
     if (f.live or id == .tint) {
         // only the drawing changes, not the film
@@ -415,6 +455,35 @@ pub fn applySuggested() void {
     b.applySuggestions();
     settings.sync(&b.vals);
     requestCompute(b);
+}
+
+// ---------------------------------------------------------------------------
+// Saving files
+
+fn onSave(e: ?*lv.lv_event_t) callconv(.c) void {
+    const kind: exporter.Kind = @enumFromInt(@intFromPtr(lv.lv_event_get_user_data(e)) - 1);
+    startSave(kind);
+}
+
+/// Asks where to save, then writes the file (saveTo).
+pub fn startSave(kind: exporter.Kind) void {
+    const b = cur orelse return;
+    if (b.computedFilm() == null or job != null) return setStatus("Wait until the film is computed.", .{});
+    pending_save = kind;
+    dialogs.start(if (kind == .film_png) .save_png else .save_svg, exporter.fileName(b, kind));
+}
+
+/// Writes the pending file to `path`.
+pub fn saveTo(path: []const u8) void {
+    const b = cur orelse return;
+    exporter.save(gpa, io, b, pending_save, path) catch |e| return setStatus("Cannot save: {s}", .{@errorName(e)});
+    setStatus("Saved {s}", .{std.fs.path.basename(path)});
+}
+
+/// Saves a file without the dialog (for the in-app test).
+pub fn saveAs(kind: exporter.Kind, path: []const u8) void {
+    pending_save = kind;
+    saveTo(path);
 }
 
 fn onApplySuggested(_: ?*lv.lv_event_t) callconv(.c) void {
@@ -570,7 +639,7 @@ fn onTimer(_: ?*lv.lv_timer_t) callconv(.c) void {
     if (cur) |b| if (view_box != null and canvas.obj != null and b.computedFilm() != null) {
         const w = lv.lv_obj_get_content_width(view_box);
         const h = lv.lv_obj_get_content_height(view_box);
-        if (w > 0 and h > 0 and (w != canvas.w or h != canvas.h)) render();
+        if (w > 0 and h > 0 and (w != drawn_for[0] or h != drawn_for[1])) render();
     };
     if (dialogs.poll()) |r| {
         defer if (r.path) |p| gpa.free(p);
@@ -578,7 +647,7 @@ fn onTimer(_: ?*lv.lv_timer_t) callconv(.c) void {
             setStatus("Cannot show the file dialog: {s}", .{e});
         } else if (r.path) |p| switch (r.kind) {
             .open_picture => openPicturePath(p),
-            .save_png, .save_svg => {},
+            .save_png, .save_svg => saveTo(p),
         };
     }
 }

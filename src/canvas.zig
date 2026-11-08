@@ -14,7 +14,8 @@ extern fn shadow_circle(cx: f32, cy: f32, r: f32, fill: u32, fill_opa: u8, borde
 extern fn shadow_arc(cx: f32, cy: f32, r: f32, width: f32, start: f32, end: f32, rgb: u32, opa: u8) void;
 extern fn shadow_rect(x: f32, y: f32, w: f32, h: f32, fill: u32, fill_opa: u8, border: u32, border_opa: u8, border_w: f32) void;
 extern fn shadow_triangle(x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32, rgb: u32, opa: u8) void;
-extern fn shadow_text(x: f32, y: f32, text: [*:0]const u8, font: ?*const lv.lv_font_t, rgb: u32, opa: u8, alignment: c_int, valign: c_int, rot: f32) void;
+extern fn shadow_text(x: f32, y: f32, text: [*:0]const u8, font: ?*const lv.lv_font_t, rgb: u32, opa: u8, alignment: c_int, valign: c_int) void;
+extern fn shadow_text_metrics(text: [*:0]const u8, font: ?*const lv.lv_font_t, width: *i32, line_h: *i32, ascent: *i32) void;
 extern fn shadow_canvas_fill(canvas: ?*lv.lv_obj_t, rgb: u32) void;
 extern fn shadow_canvas_detach(canvas: ?*lv.lv_obj_t) void;
 
@@ -162,15 +163,53 @@ pub const Align = enum(c_int) { start = 0, middle = 1, end = 2 };
 
 /// Text with its baseline at y
 pub fn text(x: f64, y: f64, s: [*:0]const u8, font: ?*const lv.lv_font_t, color: u32, alignment: Align) void {
-    shadow_text(f(x), f(y), s, font, color, 255, @intFromEnum(alignment), 0, 0);
+    shadow_text(f(x), f(y), s, font, color, 255, @intFromEnum(alignment), 0);
 }
 
 /// Text centered vertically on y
 pub fn textMiddle(x: f64, y: f64, s: [*:0]const u8, font: ?*const lv.lv_font_t, color: u32, alignment: Align) void {
-    shadow_text(f(x), f(y), s, font, color, 255, @intFromEnum(alignment), 1, 0);
+    shadow_text(f(x), f(y), s, font, color, 255, @intFromEnum(alignment), 1);
 }
 
-/// Text with its baseline at y, turned by rot degrees around (x, y)
-pub fn textRotated(x: f64, y: f64, s: [*:0]const u8, font: ?*const lv.lv_font_t, color: u32, alignment: Align, rot: f64) void {
-    shadow_text(f(x), f(y), s, font, color, 255, @intFromEnum(alignment), 0, f(rot));
+/// Text with its baseline at y, turned a quarter turn counterclockwise
+/// around (x, y) so it reads upward (SVG rotate(-90)). Call outside
+/// begin/end: it draws the text flat on a small canvas and blends the turned
+/// pixels into `c`.
+pub fn textUpward(c: *const Canvas, x: f64, y: f64, s: [*:0]const u8, font: ?*const lv.lv_font_t, color: u32, alignment: Align) !void {
+    var tw: i32 = 0;
+    var lh: i32 = 0;
+    var asc: i32 = 0;
+    shadow_text_metrics(s, font, &tw, &lh, &asc);
+    var tmp = try Canvas.create(lv.lv_layer_sys(), tw + 2, lh);
+    defer tmp.destroy();
+    lv.lv_obj_set_hidden(tmp.obj, true);
+    tmp.fill(0xFFFFFF);
+    tmp.begin();
+    text(1, @floatFromInt(asc), s, font, 0x000000, .start);
+    tmp.end();
+
+    const anchor: f64 = switch (alignment) {
+        .start => 1,
+        .middle => @as(f64, @floatFromInt(tw)) / 2 + 1,
+        .end => @as(f64, @floatFromInt(tw)) + 1,
+    };
+    const src = tmp.pixels();
+    const dst = c.pixels();
+    const cr: f64 = @floatFromInt(color >> 16 & 0xFF);
+    const cg: f64 = @floatFromInt(color >> 8 & 0xFF);
+    const cb: f64 = @floatFromInt(color & 0xFF);
+    for (0..@intCast(lh)) |v| for (0..@intCast(tmp.w)) |u| {
+        const cover = 255 - (src.px[v * src.stride + u] & 0xFF); // black text on white
+        if (cover == 0) continue;
+        // flat (u, v) -> turned: along the text goes up, above the baseline goes left
+        const tx: i64 = @intFromFloat(@round(x + @as(f64, @floatFromInt(v)) - @as(f64, @floatFromInt(asc))));
+        const ty: i64 = @intFromFloat(@round(y - (@as(f64, @floatFromInt(u)) - anchor)));
+        if (tx < 0 or ty < 0 or tx >= c.w or ty >= c.h) continue;
+        const p = &dst.px[@as(usize, @intCast(ty)) * dst.stride + @as(usize, @intCast(tx))];
+        const a = @as(f64, @floatFromInt(cover)) / 255;
+        const r: f64 = @floatFromInt(p.* >> 16 & 0xFF);
+        const g: f64 = @floatFromInt(p.* >> 8 & 0xFF);
+        const b: f64 = @floatFromInt(p.* & 0xFF);
+        p.* = pixel(r + (cr - r) * a, g + (cg - g) * a, b + (cb - b) * a);
+    };
 }

@@ -90,6 +90,21 @@ fn isVisible(obj: ?*lv.lv_obj_t) bool {
 
 var dir: []const u8 = "";
 
+/// Saves a file through the workbench (as after the save dialog) and reads it back.
+fn saveAndRead(kind: ui.wb.exporter.Kind, name: []const u8) ![]u8 {
+    var buf: [512]u8 = undefined;
+    const path = try std.fmt.bufPrint(&buf, "{s}/{s}", .{ dir, name });
+    ui.wb.saveAs(kind, path);
+    if (!std.mem.startsWith(u8, ui.wb.status_text, "Saved")) {
+        std.debug.print("test: save failed: {s}\n", .{ui.wb.status_text});
+        return error.TestSaveFailed;
+    }
+    const ext: []const u8 = if (kind == .film_png) ".png" else ".svg";
+    var full_buf: [512]u8 = undefined;
+    const full = if (std.mem.endsWith(u8, path, ext)) path else try std.fmt.bufPrint(&full_buf, "{s}{s}", .{ path, ext });
+    return Io.Dir.cwd().readFileAlloc(io, full, gpa, .limited(100 * 1024 * 1024));
+}
+
 pub fn run(allocator: std.mem.Allocator, io_: Io) !void {
     gpa = allocator;
     io = io_;
@@ -157,6 +172,42 @@ pub fn run(allocator: std.mem.Allocator, io_: Io) !void {
         ui.wb.openPicturePath("no/such/file.png");
         try expect(std.mem.startsWith(u8, ui.wb.status_text, "Cannot open the picture"), "missing file reported");
     }
+
+    // --- Saving: print PNG with its resolution, SVG, laser pattern, parts drawing ---
+    try tap(ui.refs.lamp_btns[1]);
+    compute();
+    try expect(ui.wb.refs.save_png_btn != null and ui.wb.refs.save_svg_btn != null, "save buttons on the Film page");
+    shot("05_film_saved");
+    {
+        const png = try saveAndRead(.film_png, "film.png");
+        defer gpa.free(png);
+        try expect(std.mem.eql(u8, png[1..4], "PNG") and std.mem.eql(u8, png[37..41], "pHYs"), "print PNG with resolution");
+        try expect(png[25] == 2, "print PNG is RGB");
+        try expect(std.mem.eql(u8, ui.wb.status_text, "Saved film.png"), "saved message");
+    }
+    {
+        const svg = try saveAndRead(.film_svg, "film");
+        defer gpa.free(svg);
+        try expect(std.mem.startsWith(u8, svg, "<svg") and std.mem.indexOf(u8, svg, "data:image/png;base64,") != null, "film SVG with the picture (extension added)");
+    }
+    try choose(control(.surface), 1); // Painted glass + laser ablation
+    compute();
+    {
+        const png = try saveAndRead(.film_png, "laser.png");
+        defer gpa.free(png);
+        const fl = bench().lamp_res.?.film;
+        try expect(png[25] == 0 and std.mem.readInt(u32, png[16..20], .big) == fl.w, "laser PNG: gray, film size, no border");
+    }
+    try choose(control(.surface), 0);
+    compute();
+    try tap(ui.refs.lamp_btns[3]);
+    compute();
+    {
+        const svg = try saveAndRead(.parts_svg, "parts.svg");
+        defer gpa.free(svg);
+        try expect(std.mem.startsWith(u8, svg, "<svg") and std.mem.indexOf(u8, svg, "Parts and notes") != null, "parts SVG");
+    }
+    shot("06_parts");
 
     // --- The settings panel opens and closes, and stays so between pages ---
     const was_open = ui.settingsOpen();
