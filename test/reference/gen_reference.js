@@ -1,5 +1,5 @@
-// Generates reference results from the first version of the tool (../shadow, JavaScript) so the Go port can be
-// compared with it. Run from this directory with Node:  node gen_reference.js /home/erdem/project/shadow
+// Generates reference results from the first version of the tool (../shadow, JavaScript) so the Zig calculation can
+// be compared with it. Run from this directory with Node:  node gen_reference.js /home/erdem/project/shadow
 'use strict';
 const path = require('path');
 const fs = require('fs');
@@ -7,7 +7,7 @@ const root = process.argv[2] || '/home/erdem/project/shadow';
 const B = require(path.join(root, 'bottle.js'));
 const C = require(path.join(root, 'candle.js'));
 
-// Same deterministic pseudo-random sequence as the Go tests (LCG), so sample positions match.
+// Same deterministic pseudo-random sequence as the Zig tests (LCG), so sample positions match.
 function rng(seed) { let s = seed >>> 0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; }
 
 // Analytic test images (no image decoding needed): smooth tones and hard edges.

@@ -1,9 +1,8 @@
 //! The calculation of shadow, without UI: the film for a picture, where its
 //! light lands, the sizes of the parts and the parts drawing. Units are mm.
 //!
-//! It is a port of shadow2's Go packages (lib/shadow, lib/lamp, lib/candle),
-//! which were ported from the first JavaScript version; the tests compare the
-//! results with that version (test/reference/reference.json).
+//! The results follow the first version of the tool (JavaScript); the tests
+//! compare them with that version (test/reference/reference.json).
 
 pub const format = @import("format.zig");
 pub const optics = @import("optics.zig");
