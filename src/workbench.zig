@@ -296,6 +296,11 @@ fn benchOf(product: Product) !*Bench {
     if (b.analysis) |*a| {
         if (b.vals.is(.mode, "binary")) b.vals.setNum(.threshold, suggest.suggestedThreshold(a, false));
     }
+    // The glass sits on her cheek, not in the middle of the face: the
+    // picture center moves the other way (fractions of the picture width).
+    const iw = b.vals.num(.iw);
+    b.vals.setNum(.ix, fmt.jsRound(-0.16 * iw));
+    b.vals.setNum(.iy, fmt.jsRound(0.08 * iw));
     slot.* = b;
     return b;
 }

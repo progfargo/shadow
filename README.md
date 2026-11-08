@@ -123,7 +123,7 @@ It prints `test: ok` at the end. Add `SHADOW_SHOT=<dir>` to save screenshots.
 
 ## License
 
-Sample picture: 1950s studio publicity portrait of Audrey Hepburn, cropped
+Sample picture: portrait of Audrey Hepburn, photo via Newscom
 (`assets/sample_portrait.jpg`).
 
 Bundled fonts: Montserrat (SIL Open Font License, `assets/Montserrat-OFL.txt`) and
