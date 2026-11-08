@@ -131,8 +131,8 @@ pub fn drawImage(c: *Canvas, b: *const Bench) !void {
     const pt = b.pattern();
     const pl = b.placement();
     const ih = pl.iw * pl.aspect;
-    const w: usize = @intFromFloat(@max(1, fmt.jsRound(pl.iw * v.sc)));
-    const h: usize = @intFromFloat(@max(1, fmt.jsRound(ih * v.sc)));
+    const w: usize = @intFromFloat(@max(1, fmt.roundHalfUp(pl.iw * v.sc)));
+    const h: usize = @intFromFloat(@max(1, fmt.roundHalfUp(ih * v.sc)));
     const rgb = try wb.gpa.alloc(f32, 3 * w * h);
     defer wb.gpa.free(rgb);
     b.picture.resample(rgb, w, h);
@@ -266,7 +266,7 @@ pub fn lightColor(b: *const Bench) [3]f64 {
     const t = rgbOf(@import("settings.zig").parseColor(b.vals.get(.tint)));
     const led = [3]f64{ 255, 236, 190 };
     var c: [3]f64 = undefined;
-    for (0..3) |k| c[k] = fmt.jsRound(led[k] * t[k] / 255);
+    for (0..3) |k| c[k] = fmt.roundHalfUp(led[k] * t[k] / 255);
     return c;
 }
 
@@ -306,7 +306,7 @@ pub fn drawLampLight(c: *Canvas, b: *const Bench) !void {
         const qy = (v.Y(0) - @as(f64, @floatFromInt(y)) - 0.5) / v.sc;
         for (0..w) |x| {
             const qx = (@as(f64, @floatFromInt(x)) + 0.5 - v.X(0)) / v.sc;
-            sharp[y * w + x] = @floatCast(fmt.jsRound(255 * r.litAt(qx, qy)) / 255);
+            sharp[y * w + x] = @floatCast(fmt.roundHalfUp(255 * r.litAt(qx, qy)) / 255);
         }
     }
 

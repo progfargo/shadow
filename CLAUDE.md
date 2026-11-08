@@ -2,7 +2,7 @@
 
 Desktop design tool for "shadow bottle" products: Zig 0.17.1 + LVGL 9.6 + SDL3
 (allyourcodebase/SDL). The calculation follows the first version of the tool
-(JavaScript, `~/project/shadow`), whose results are the test reference. Platform layer
+(`~/project/shadow`), whose results are the test reference. Platform layer
 and conventions come from `~/project/github/eexif` (desktop) and `~/project/repeto/repeto`.
 
 ## Working with the user
@@ -75,7 +75,9 @@ and conventions come from `~/project/github/eexif` (desktop) and `~/project/repe
 - `src/app_test.zig`: in-app test.
 - `docs/`: screenshots for the README (from the in-app test's `SHADOW_SHOT`).
 - `src/core/`: the calculation, no UI (module `core`):
-  - `format.zig`: JavaScript-compatible number text (`jsFixed` = toFixed, `jsNum`, `jsRound`).
+  - `format.zig`: number text with the first version's rules: `roundHalfUp` (halves
+    toward +infinity), `fixedText` (fixed decimals, exact value, halves away from zero),
+    `numText` (shortest form).
   - `film.zig`: pattern settings, film raster, `mapFilm` (film pixel → lit surface,
     exact every 4 px and interpolated, stored as f32), `fillFilm`.
   - `screen.zig`: halftone patterns. `optics.zig`: cylinder and glass refraction.
@@ -112,8 +114,8 @@ file yet (the user decides).
   cache ("invalid magic" error); `Canvas.destroy` detaches the buffer first.
 - Zig array literals assigned to the same array alias: `q.* = .{ f(q[0]), g(q[0]) }`
   writes q[0] before g reads it. Copy first (see `parts.zig` slot).
-- Numbers that JavaScript formatted: `Math.round` → `jsRound`, `toFixed` → `jsFixed`,
-  number to text → `jsNum`.
+- Numbers in labels and the parts SVG go through `roundHalfUp`, `fixedText` and
+  `numText`, never through `{d:.1}` and the like, which round halves to even.
 - The app sets the halftone grid to `wall`; `film` stays for the reference tests.
 - The page's toolbar items are created before the drawing is sized: a widget added
   later changes the drawing area (the timer redraws if the size changes anyway).

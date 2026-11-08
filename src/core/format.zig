@@ -1,18 +1,18 @@
-//! Number formatting that matches JavaScript, so labels, drawings and the
-//! parts SVG come out exactly as in the first (JavaScript) version.
+//! Number formatting with fixed rules, so labels, drawings and the parts SVG
+//! come out exactly as in the first version of the tool.
 
 const std = @import("std");
 
-/// Like JavaScript's Math.round: halves go toward +infinity.
-pub fn jsRound(x: f64) f64 {
+/// Rounds to the nearest integer; halves go toward +infinity (2.5 -> 3, -2.5 -> -2).
+pub fn roundHalfUp(x: f64) f64 {
     return @floor(x + 0.5);
 }
 
-/// Formats like JavaScript's Number.prototype.toFixed: the exact binary value
-/// is rounded to `digits` decimals with halves going away from zero (6.25 ->
-/// "6.3"; most formatters round halves to even and would print "6.2").
+/// Fixed number of decimals: the exact binary value is rounded to `digits`
+/// decimals with halves going away from zero (6.25 -> "6.3"; most
+/// formatters round halves to even and would print "6.2").
 /// `digits` is at most 6. Writes into `buf` and returns the text.
-pub fn jsFixed(buf: []u8, x: f64, digits: u3) []const u8 {
+pub fn fixedText(buf: []u8, x: f64, digits: u3) []const u8 {
     if (std.math.isNan(x)) return "NaN";
     if (std.math.isInf(x)) return if (x > 0) "Infinity" else "-Infinity";
     const neg = x < 0;
@@ -59,7 +59,7 @@ pub fn jsFixed(buf: []u8, x: f64, digits: u3) []const u8 {
         v /= 10;
     }
     var out: usize = 0;
-    // JavaScript keeps the sign of small negatives: (-0.04).toFixed(1) is "-0.0"
+    // The sign of small negatives is kept: -0.04 with one decimal is "-0.0"
     if (neg) {
         buf[out] = '-';
         out += 1;
@@ -77,22 +77,22 @@ pub fn jsFixed(buf: []u8, x: f64, digits: u3) []const u8 {
     return buf[0..out];
 }
 
-/// Formats a number the way JavaScript turns it into text (shortest form
+/// The shortest text that reads back as the same number (shortest form
 /// that reads back the same; no exponent for the sizes used here).
-pub fn jsNum(buf: []u8, x: f64) []const u8 {
-    if (x == 0) return "0"; // also -0, like JavaScript
+pub fn numText(buf: []u8, x: f64) []const u8 {
+    if (x == 0) return "0"; // also -0
     return std.fmt.bufPrint(buf, "{d}", .{x}) catch "?";
 }
 
 /// Writer helpers: the same as above, written to a writer.
 pub fn writeFixed(w: *std.Io.Writer, x: f64, digits: u3) !void {
     var buf: [64]u8 = undefined;
-    try w.writeAll(jsFixed(&buf, x, digits));
+    try w.writeAll(fixedText(&buf, x, digits));
 }
 
 pub fn writeNum(w: *std.Io.Writer, x: f64) !void {
     var buf: [64]u8 = undefined;
-    try w.writeAll(jsNum(&buf, x));
+    try w.writeAll(numText(&buf, x));
 }
 
 /// Formatting wrappers for "{f}" in format strings: `fixed1(x)`, `num(x)`.
@@ -101,7 +101,7 @@ pub const Fixed = struct {
     digits: u3,
     pub fn format(self: Fixed, w: *std.Io.Writer) std.Io.Writer.Error!void {
         var buf: [64]u8 = undefined;
-        try w.writeAll(jsFixed(&buf, self.x, self.digits));
+        try w.writeAll(fixedText(&buf, self.x, self.digits));
     }
 };
 
@@ -109,7 +109,7 @@ pub const Num = struct {
     x: f64,
     pub fn format(self: Num, w: *std.Io.Writer) std.Io.Writer.Error!void {
         var buf: [64]u8 = undefined;
-        try w.writeAll(jsNum(&buf, self.x));
+        try w.writeAll(numText(&buf, self.x));
     }
 };
 
@@ -131,7 +131,7 @@ pub fn parseNum(s: []const u8) f64 {
     return if (std.math.isNan(v)) 0 else v;
 }
 
-test "jsFixed matches JavaScript" {
+test "fixedText rounds the exact value, halves away from zero" {
     const cases = [_]struct { x: f64, d: u3, want: []const u8 }{
         .{ .x = 6.25, .d = 1, .want = "6.3" },     .{ .x = 1.005, .d = 2, .want = "1.00" },
         .{ .x = 0.05, .d = 1, .want = "0.1" },     .{ .x = -0.04, .d = 1, .want = "-0.0" },
@@ -143,15 +143,15 @@ test "jsFixed matches JavaScript" {
     };
     for (cases) |c| {
         var buf: [64]u8 = undefined;
-        try std.testing.expectEqualStrings(c.want, jsFixed(&buf, c.x, c.d));
+        try std.testing.expectEqualStrings(c.want, fixedText(&buf, c.x, c.d));
     }
 }
 
-test "jsNum matches JavaScript" {
+test "numText prints the shortest form" {
     var buf: [64]u8 = undefined;
-    try std.testing.expectEqualStrings("116", jsNum(&buf, 116));
-    try std.testing.expectEqualStrings("0.1", jsNum(&buf, 0.1));
-    try std.testing.expectEqualStrings("12.5", jsNum(&buf, 12.5));
-    try std.testing.expectEqualStrings("-90", jsNum(&buf, -90));
-    try std.testing.expectEqualStrings("0", jsNum(&buf, -0.0));
+    try std.testing.expectEqualStrings("116", numText(&buf, 116));
+    try std.testing.expectEqualStrings("0.1", numText(&buf, 0.1));
+    try std.testing.expectEqualStrings("12.5", numText(&buf, 12.5));
+    try std.testing.expectEqualStrings("-90", numText(&buf, -90));
+    try std.testing.expectEqualStrings("0", numText(&buf, -0.0));
 }

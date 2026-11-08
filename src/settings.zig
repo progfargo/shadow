@@ -235,7 +235,7 @@ pub const Values = struct {
 
     pub fn setNum(v: *Values, id: Id, x: f64) void {
         var buf: [64]u8 = undefined;
-        v.set(id, core.format.jsNum(&buf, x));
+        v.set(id, core.format.numText(&buf, x));
     }
 
     pub fn num(v: *const Values, id: Id) f64 {
@@ -543,7 +543,7 @@ fn onValueChanged(e: ?*lv.lv_event_t) callconv(.c) void {
     const text: []const u8 = switch (f.kind) {
         .check => if (lv.lv_obj_has_state(c, lv.LV_STATE_CHECKED)) "true" else "false",
         .select => f.opts[lv.lv_dropdown_get_selected(c)].value,
-        .range => core.format.jsNum(&buf, @as(f64, @floatFromInt(lv.lv_slider_get_value(c))) / 100),
+        .range => core.format.numText(&buf, @as(f64, @floatFromInt(lv.lv_slider_get_value(c))) / 100),
         .num, .color => std.mem.trim(u8, std.mem.span(lv.lv_textarea_get_text(c)), " "),
         else => return,
     };

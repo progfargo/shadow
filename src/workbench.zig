@@ -156,15 +156,15 @@ pub const Bench = struct {
         s.add(.mode, @tagName(a.mode));
         s.add(.invert, if (a.invert) "true" else "false");
         if (a.mode == .binary) {
-            s.add(.threshold, fmt.jsNum(&buf, suggest.suggestedThreshold(a, a.invert)));
+            s.add(.threshold, fmt.numText(&buf, suggest.suggestedThreshold(a, a.invert)));
             s.add(.gamma, "1");
         } else {
             const size = if (b.product == .candle) b.vals.num(.fwid) * 0.35 else b.vals.num(.led);
-            s.add(.gamma, fmt.jsNum(&buf, suggest.suggestedGamma(a, a.invert)));
+            s.add(.gamma, fmt.numText(&buf, suggest.suggestedGamma(a, a.invert)));
             s.add(.ht_pattern, "dot");
             s.add(.fill, "1");
             s.add(.ht_angle, "0");
-            s.add(.pitch, fmt.jsNum(&buf, suggest.suggestedPitch(size)));
+            s.add(.pitch, fmt.numText(&buf, suggest.suggestedPitch(size)));
         }
         return s;
     }
@@ -299,8 +299,8 @@ fn benchOf(product: Product) !*Bench {
     // The glass sits on her cheek, not in the middle of the face: the
     // picture center moves the other way (fractions of the picture width).
     const iw = b.vals.num(.iw);
-    b.vals.setNum(.ix, fmt.jsRound(-0.16 * iw));
-    b.vals.setNum(.iy, fmt.jsRound(0.08 * iw));
+    b.vals.setNum(.ix, fmt.roundHalfUp(-0.16 * iw));
+    b.vals.setNum(.iy, fmt.roundHalfUp(0.08 * iw));
     slot.* = b;
     return b;
 }
@@ -537,8 +537,8 @@ fn onDrag(e: ?*lv.lv_event_t) callconv(.c) void {
             if (!drag.on) return;
             drag.on = false;
             if (@abs(drag.ox) < 0.5 and @abs(drag.oy) < 0.5) return;
-            b.vals.setNum(.ix, fmt.jsRound(drag.ix - drag.ox));
-            b.vals.setNum(.iy, fmt.jsRound(drag.iy - drag.oy));
+            b.vals.setNum(.ix, fmt.roundHalfUp(drag.ix - drag.ox));
+            b.vals.setNum(.iy, fmt.roundHalfUp(drag.iy - drag.oy));
             settings.sync(&b.vals);
             requestCompute(b);
         },
@@ -788,10 +788,10 @@ fn updateInfo() !void {
             const p = &r.p;
             warn = candle.warnings(p);
             const ri = candle.innerRadius(p, p.hd);
-            try stats.append(a, try std.fmt.allocPrint(a, "Image on table: {f} × {f} mm", .{ fmt.num(fmt.jsRound(p.placement.iw)), fmt.num(fmt.jsRound(p.placement.iw * p.placement.aspect)) }));
-            try stats.append(a, try std.fmt.allocPrint(a, "Image starts {f} mm from the glass center (dashed circle; the candle blocks the light inside)", .{fmt.num(fmt.jsRound(ri))}));
+            try stats.append(a, try std.fmt.allocPrint(a, "Image on table: {f} × {f} mm", .{ fmt.num(fmt.roundHalfUp(p.placement.iw)), fmt.num(fmt.roundHalfUp(p.placement.iw * p.placement.aspect)) }));
+            try stats.append(a, try std.fmt.allocPrint(a, "Image starts {f} mm from the glass center (dashed circle; the candle blocks the light inside)", .{fmt.num(fmt.roundHalfUp(ri))}));
             try stats.append(a, try std.fmt.allocPrint(a, "Blur from the flame: ~{f} mm near the glass, ~{f} mm at the image edge", .{
-                fmt.num(fmt.jsRound(r.blurAt(ri + 20, 0, p.fwid))), fmt.num(fmt.jsRound(r.blurAt(p.placement.iw / 2 * 0.9, 0, p.fwid))),
+                fmt.num(fmt.roundHalfUp(r.blurAt(ri + 20, 0, p.fwid))), fmt.num(fmt.roundHalfUp(r.blurAt(p.placement.iw / 2 * 0.9, 0, p.fwid))),
             }));
             syncFlameSlider(b);
             updateFlameNote(b);
@@ -804,13 +804,13 @@ fn updateInfo() !void {
             if (std.math.hypot(p.lx, p.ly) >= p.dia / 2 - p.glass) warn.add("LED is outside the tube.");
             const d = lamp.baseDims(p);
             for (lamp.baseWarnings(p, &d).slice()) |w| warn.add(w);
-            try stats.append(a, try std.fmt.allocPrint(a, "Image on wall: {f} × {f} mm", .{ fmt.num(fmt.jsRound(p.placement.iw)), fmt.num(fmt.jsRound(p.placement.iw * p.placement.aspect)) }));
+            try stats.append(a, try std.fmt.allocPrint(a, "Image on wall: {f} × {f} mm", .{ fmt.num(fmt.roundHalfUp(p.placement.iw)), fmt.num(fmt.roundHalfUp(p.placement.iw * p.placement.aspect)) }));
             try stats.append(a, try std.fmt.allocPrint(a, "Back cap and plug: Ø {f} mm", .{fmt.fixed1(d.db)}));
             try stats.append(a, try std.fmt.allocPrint(a, "Cable shadow: ~{f}° wide, below the bottle", .{fmt.fixed1(d.cable.shadow_deg)}));
             const ri = r.B.innerRadius();
-            if (std.math.isFinite(ri)) try stats.append(a, try std.fmt.allocPrint(a, "Light starts {f} mm from the bottle center (dashed circle)", .{fmt.num(fmt.jsRound(ri))}));
+            if (std.math.isFinite(ri)) try stats.append(a, try std.fmt.allocPrint(a, "Light starts {f} mm from the bottle center (dashed circle)", .{fmt.num(fmt.roundHalfUp(ri))}));
             var buf: [64]u8 = undefined;
-            b.vals.set(.lz, fmt.jsFixed(&buf, p.lz, 1));
+            b.vals.set(.lz, fmt.fixedText(&buf, p.lz, 1));
         },
     }
 
@@ -858,11 +858,11 @@ fn updateInfo() !void {
 /// design height until the user moves it.
 fn syncFlameSlider(b: *Bench) void {
     const p = &b.candle_res.?.p;
-    const lo = fmt.jsRound(p.gb + p.fhei / 2 + 3);
-    const hi = @max(lo, fmt.jsRound(p.gb + p.gh - p.fhei / 2));
+    const lo = fmt.roundHalfUp(p.gb + p.fhei / 2 + 3);
+    const hi = @max(lo, fmt.roundHalfUp(p.gb + p.gh - p.fhei / 2));
     settings.setRange(.hnow, lo, hi);
     if (!b.hnow_touched or p.source != .real) b.vals.setNum(.hnow, p.hd);
-    b.vals.setNum(.hnow, std.math.clamp(fmt.jsRound(b.vals.num(.hnow)), lo, hi));
+    b.vals.setNum(.hnow, std.math.clamp(fmt.roundHalfUp(b.vals.num(.hnow)), lo, hi));
 }
 
 /// The note under the simulation sliders.
@@ -882,7 +882,7 @@ fn updateFlameNote(b: *const Bench) void {
 fn writeFlameNote(w: *std.Io.Writer, p: *const candle.Params, h: f64, ri: f64) !void {
     if (p.source != .real) {
         try w.print("LED candles do not burn down: the light stays at {f} mm and the image stays sharp. " ++
-            "Light on the table starts {f} mm from the glass center.", .{ fmt.num(p.hd), fmt.num(fmt.jsRound(ri)) });
+            "Light on the table starts {f} mm from the glass center.", .{ fmt.num(p.hd), fmt.num(fmt.roundHalfUp(ri)) });
         return;
     }
     try w.print("Flame now {f} mm, design {f} mm. The image is sharpest when they match.", .{ fmt.num(h), fmt.num(p.hd) });
@@ -893,7 +893,7 @@ fn writeFlameNote(w: *std.Io.Writer, p: *const candle.Params, h: f64, ri: f64) !
     } else if (h < band_bottom) {
         try w.writeAll(" The flame is below the pattern: most of its light goes up, not to the table.");
     } else {
-        try w.print(" Light on the table starts {f} mm from the glass center.", .{fmt.num(fmt.jsRound(ri))});
+        try w.print(" Light on the table starts {f} mm from the glass center.", .{fmt.num(fmt.roundHalfUp(ri))});
     }
 }
 

@@ -4,7 +4,7 @@
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const jsRound = @import("format.zig").jsRound;
+const roundHalfUp = @import("format.zig").roundHalfUp;
 const Screen = @import("screen.zig").Screen;
 
 pub const Mode = enum { binary, halftone };
@@ -97,8 +97,8 @@ pub const Film = struct {
     /// An empty film for a glass of the given circumference and height.
     pub fn init(gpa: Allocator, circ: f64, height: f64, dpi: f64) !Film {
         const px = 25.4 / dpi;
-        const w: usize = @intFromFloat(@max(1, jsRound(circ / px)));
-        const h: usize = @intFromFloat(@max(1, jsRound(height / px)));
+        const w: usize = @intFromFloat(@max(1, roundHalfUp(circ / px)));
+        const h: usize = @intFromFloat(@max(1, roundHalfUp(height / px)));
         const data = try gpa.alloc(u8, w * h);
         errdefer gpa.free(data);
         const shadow = try gpa.alloc(u8, w * h);

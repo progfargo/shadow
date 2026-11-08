@@ -1,13 +1,13 @@
 //! PNG resolution chunk, so a film prints at actual size.
 
 const std = @import("std");
-const jsRound = @import("format.zig").jsRound;
+const roundHalfUp = @import("format.zig").roundHalfUp;
 
 /// Returns `src` (a PNG) with a resolution chunk (pHYs) right after the
 /// header. Caller owns the result.
 pub fn withDpi(gpa: std.mem.Allocator, src: []const u8, dpi: f64) ![]u8 {
     if (src.len < 33) return error.NotPng;
-    const ppm: u32 = @intFromFloat(jsRound(dpi / 0.0254));
+    const ppm: u32 = @intFromFloat(roundHalfUp(dpi / 0.0254));
     var chunk: [21]u8 = undefined;
     std.mem.writeInt(u32, chunk[0..4], 9, .big);
     @memcpy(chunk[4..8], "pHYs");

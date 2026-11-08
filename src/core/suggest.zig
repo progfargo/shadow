@@ -22,7 +22,7 @@ pub fn analyzeRgba(rgba: []const u8) Analysis {
     var ext: f64 = 0;
     var i: usize = 0;
     while (i + 3 < rgba.len) : (i += 4) {
-        const lum = fmt.jsRound(0.2126 * @as(f64, @floatFromInt(rgba[i])) + 0.7152 * @as(f64, @floatFromInt(rgba[i + 1])) +
+        const lum = fmt.roundHalfUp(0.2126 * @as(f64, @floatFromInt(rgba[i])) + 0.7152 * @as(f64, @floatFromInt(rgba[i + 1])) +
             0.0722 * @as(f64, @floatFromInt(rgba[i + 2])));
         const b: usize = @intFromFloat(lum);
         hist[b] += 1;
@@ -74,7 +74,7 @@ pub fn analyzeRgba(rgba: []const u8) Analysis {
 /// Rounds like the first version: toFixed, then back to a number.
 fn round2(x: f64) f64 {
     var buf: [64]u8 = undefined;
-    return std.fmt.parseFloat(f64, fmt.jsFixed(&buf, x, 2)) catch x;
+    return std.fmt.parseFloat(f64, fmt.fixedText(&buf, x, 2)) catch x;
 }
 
 /// The Otsu threshold (flipped when the image is inverted), two decimals.
@@ -97,7 +97,7 @@ pub fn suggestedGamma(a: ?*const Analysis, invert: bool) f64 {
 /// smooth tones. `source_size` is the LED size for the night lamp and about a
 /// third of the flame width for the candle.
 pub fn suggestedPitch(source_size: f64) f64 {
-    return @max(1, fmt.jsRound(source_size * 2) / 2);
+    return @max(1, fmt.roundHalfUp(source_size * 2) / 2);
 }
 
 /// Explains the suggested settings in one sentence.

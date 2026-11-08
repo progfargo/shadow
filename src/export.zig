@@ -81,7 +81,7 @@ fn laserImage(gpa: Allocator, b: *const Bench) !Image {
 fn printImage(gpa: Allocator, b: *const Bench) !Image {
     const fl = b.computedFilm().?;
     const mm = 1 / fl.px; // pixels per mm
-    const m = fmt.jsRound(12 * mm);
+    const m = fmt.roundHalfUp(12 * mm);
     const W: f64 = @floatFromInt(fl.w);
     const H: f64 = @floatFromInt(fl.h);
     const cw: usize = @intFromFloat(W + 2 * m);
@@ -99,7 +99,7 @@ fn printImage(gpa: Allocator, b: *const Bench) !Image {
             for (row, fl.data[y * fl.w ..][0..fl.w]) |*p, d| p.* = if (d == 1) 0xFFFFFFFF else 0xFF000000;
         }
     }
-    const font = st.fontOfSize(@intFromFloat(fmt.jsRound(3 * mm)), false) orelse return error.FontLoadFailed;
+    const font = st.fontOfSize(@intFromFloat(fmt.roundHalfUp(3 * mm)), false) orelse return error.FontLoadFailed;
     defer st.freeFont(font);
     const gray = 0x777777;
     const top: [*:0]const u8 = if (b.product == .candle) "top of the glass" else "front plug side";

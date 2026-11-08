@@ -159,8 +159,8 @@ pub const LumGrid = struct {
 /// The picture at about 0.5 mm per pixel of the lit surface, for an image
 /// `iw` mm wide.
 pub fn lumGrid(gpa: Allocator, p: *const Picture, iw: f64) !LumGrid {
-    const jsRound = @import("core").format.jsRound;
-    const cols: usize = @intFromFloat(@max(1, @min(2400, jsRound(iw / 0.5))));
-    const rows: usize = @intFromFloat(@max(1, @min(2400, jsRound(iw * p.aspect() / 0.5))));
+    const roundHalfUp = @import("core").format.roundHalfUp;
+    const cols: usize = @intFromFloat(@max(1, @min(2400, roundHalfUp(iw / 0.5))));
+    const rows: usize = @intFromFloat(@max(1, @min(2400, roundHalfUp(iw * p.aspect() / 0.5))));
     return .{ .cols = cols, .rows = rows, .lum = try p.luminance(gpa, cols, rows) };
 }

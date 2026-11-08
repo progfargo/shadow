@@ -1,7 +1,7 @@
 //! The calculation of shadow, without UI: the film for a picture, where its
 //! light lands, the sizes of the parts and the parts drawing. Units are mm.
 //!
-//! The results follow the first version of the tool (JavaScript); the tests
+//! The results follow the first version of the tool; the tests
 //! compare them with that version (test/reference/reference.json).
 
 pub const format = @import("format.zig");

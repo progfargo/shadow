@@ -3,7 +3,7 @@
 
 const std = @import("std");
 const film = @import("film.zig");
-const jsRound = @import("format.zig").jsRound;
+const roundHalfUp = @import("format.zig").roundHalfUp;
 
 pub const Screen = struct {
     kind: film.HtPattern,
@@ -35,7 +35,7 @@ pub const Screen = struct {
 
     /// Distance to the nearest line of the grid
     inline fn nearLine(s: *const Screen, v: f64) f64 {
-        return @abs(v - jsRound(v / s.P) * s.P);
+        return @abs(v - roundHalfUp(v / s.P) * s.P);
     }
 
     inline fn rot(s: *const Screen, a: f64, b: f64) [2]f64 {
@@ -49,8 +49,8 @@ pub const Screen = struct {
         switch (s.kind) {
             .square => { // square grid; 45° gives diamonds
                 const q = s.rot(a, b);
-                const du = q[0] - jsRound(q[0] / P) * P;
-                const dv = q[1] - jsRound(q[1] / P) * P;
+                const du = q[0] - roundHalfUp(q[0] / P) * P;
+                const dv = q[1] - roundHalfUp(q[1] / P) * P;
                 const k = @max(@abs(du), @abs(dv)) / (P / 2);
                 return k * k < t * F * F;
             },
@@ -74,12 +74,12 @@ pub const Screen = struct {
             },
             .dot => { // round dots on a hexagonal grid
                 const q = s.rot(a, b);
-                const row: i64 = @intFromFloat(jsRound(q[1] / s.dy));
+                const row: i64 = @intFromFloat(roundHalfUp(q[1] / s.dy));
                 var best = std.math.inf(f64);
                 var rr = row - 1;
                 while (rr <= row + 1) : (rr += 1) {
                     const off: f64 = if (@mod(rr, 2) == 1) P / 2 else 0;
-                    const cx = jsRound((q[0] - off) / P) * P + off;
+                    const cx = roundHalfUp((q[0] - off) / P) * P + off;
                     const cy = @as(f64, @floatFromInt(rr)) * s.dy;
                     const d2 = (q[0] - cx) * (q[0] - cx) + (q[1] - cy) * (q[1] - cy);
                     if (d2 < best) best = d2;
