@@ -26,6 +26,7 @@ the reference for behavior and results. Platform layer and conventions come from
 ## Build and test
 
 - Build: `zig build`. The first build compiles LVGL and SDL (a few minutes).
+- Unit tests: `zig build test` (src/core: the calculation against the first version's results).
 - In-app test (offscreen, DebugAllocator reports leaks):
   `(ulimit -v 4000000; SHADOW_TEST=1 SDL_VIDEO_DRIVER=offscreen SHADOW_SHOT=<tmp>/shots timeout 150 nice ./zig-out/bin/shadow)`
   → must end with `test: ok`. Screenshots are BMP; convert to PNG to look at them.
@@ -39,6 +40,29 @@ the reference for behavior and results. Platform layer and conventions come from
 - `src/style.zig`: colors, scale (`dp`), fonts, widget helpers.
 - `src/lv_helpers.c`: LVGL fields with bit fields (opaque in Zig).
 - `src/app_test.zig`: in-app test.
+- `src/core/`: the calculation, no UI (module `core`). Port of shadow2's `lib/shadow`,
+  `lib/lamp`, `lib/candle`:
+  - `format.zig`: JavaScript-compatible number text (`jsFixed` = toFixed, `jsNum`, `jsRound`).
+  - `film.zig`: pattern settings, film raster, `mapFilm` (film pixel → lit surface,
+    exact every 4 px and interpolated, stored as f32), `fillFilm`.
+  - `screen.zig`: halftone patterns. `optics.zig`: cylinder and glass refraction.
+  - `lamp.zig`, `lamp_dims.zig`: night lamp geometry, wooden part sizes, warnings.
+  - `candle.zig`: candle glass. `suggest.zig`: settings suggested from the picture.
+  - `parts.zig`: parts drawing as a list of shapes; written as SVG (byte-identical to
+    the first version) and drawn on screen.
+  - `png.zig`: pHYs chunk so PNGs print at actual size.
+  - `reference_test.zig`: compares with `test/reference/reference.json` (made by
+    `gen_reference.js` from the first version, `~/project/shadow`). Tolerances are
+    the same as in shadow2's Go tests.
+
+## Porting notes (Go/JavaScript → Zig)
+
+- `Math.round` → `jsRound` (floor(x + 0.5)); `toFixed` → `jsFixed`; number to text → `jsNum`.
+- Zig array literals assigned to the same array alias: `q.* = .{ f(q[0]), g(q[0]) }`
+  writes q[0] before g reads it. Copy first (see `parts.zig` slot).
+- Closures (sampler, projector) become a context + function pointer (`film.Sampler`)
+  or a struct passed as `anytype` (`mapFilm`).
+- The app sets `Grid` to `wall`; `film` stays for the reference tests.
 
 ## Plan
 

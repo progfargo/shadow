@@ -47,6 +47,13 @@ pub fn build(b: *std.Build) void {
     const lvgl_module = lvgl_c.createModule();
     const sdl_module = sdl_dep.module("sdl3");
 
+    // The calculation (no UI; checked against the first version's results)
+    const core_module = b.createModule(.{
+        .root_source_file = b.path("src/core/core.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const ui_module = b.createModule(.{
         .root_source_file = b.path("src/ui.zig"),
         .target = target,
@@ -54,6 +61,7 @@ pub fn build(b: *std.Build) void {
         .imports = &.{
             .{ .name = "lvgl", .module = lvgl_module },
             .{ .name = "sdl3", .module = sdl_module },
+            .{ .name = "core", .module = core_module },
         },
     });
     ui_module.addAnonymousImport("font_regular", .{ .root_source_file = b.path("assets/Montserrat-Regular.ttf") });
@@ -84,6 +92,16 @@ pub fn build(b: *std.Build) void {
     run_cmd.step.dependOn(b.getInstallStep());
     run_cmd.addPassthruArgs();
     b.step("run", "Run the app").dependOn(&run_cmd.step);
+
+    // Unit tests of the calculation, with the first version's results
+    const core_test_module = b.createModule(.{
+        .root_source_file = b.path("src/core/core.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    core_test_module.addAnonymousImport("reference_json", .{ .root_source_file = b.path("test/reference/reference.json") });
+    const core_tests = b.addTest(.{ .root_module = core_test_module });
+    b.step("test", "Run unit tests").dependOn(&b.addRunArtifact(core_tests).step);
 }
 
 /// Finds all .c files under LVGL's src/ directory.
