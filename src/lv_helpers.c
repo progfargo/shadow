@@ -15,10 +15,11 @@ bool shadow_is_textarea(const lv_obj_t * obj)
     return obj != NULL && lv_obj_check_type(obj, &lv_textarea_class);
 }
 
-/* Size and stride of a draw buffer */
-void shadow_draw_buf_size(const lv_draw_buf_t * buf, int32_t * w, int32_t * h, uint32_t * stride)
+/* Pixels, size and stride of a draw buffer */
+uint8_t * shadow_draw_buf_pixels(lv_draw_buf_t * buf, int32_t * w, int32_t * h, uint32_t * stride)
 {
     *w = buf->header.w;
     *h = buf->header.h;
     *stride = buf->header.stride;
+    return buf->data;
 }

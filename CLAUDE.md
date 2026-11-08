@@ -1,9 +1,9 @@
 # shadow
 
 Desktop design tool for "shadow bottle" products: Zig 0.17.1 + LVGL 9.6 + SDL3
-(allyourcodebase/SDL). A rewrite of the web app `~/project/shadow2` (Go/WASM), which is
-the reference for behavior and results. Platform layer and conventions come from
-`~/project/github/eexif` (desktop) and `~/project/repeto/repeto`.
+(allyourcodebase/SDL). The calculation follows the first version of the tool
+(JavaScript, `~/project/shadow`), whose results are the test reference. Platform layer
+and conventions come from `~/project/github/eexif` (desktop) and `~/project/repeto/repeto`.
 
 ## Working with the user
 
@@ -14,6 +14,8 @@ the reference for behavior and results. Platform layer and conventions come from
 - Do not add features that were not asked for; ask in one sentence instead.
 - Commits: at the end of each phase and for notable fixes, with a message that
   explains why (the history doubles as documentation).
+- The repo must not mention the earlier web version of this tool (its language,
+  name or paths): this project stands on its own.
 
 ## Rules
 
@@ -28,20 +30,37 @@ the reference for behavior and results. Platform layer and conventions come from
 - Build: `zig build`. The first build compiles LVGL and SDL (a few minutes).
 - Unit tests: `zig build test` (src/core: the calculation against the first version's results).
 - In-app test (offscreen, DebugAllocator reports leaks):
-  `(ulimit -v 4000000; SHADOW_TEST=1 SDL_VIDEO_DRIVER=offscreen SHADOW_SHOT=<tmp>/shots timeout 150 nice ./zig-out/bin/shadow)`
+  `(ulimit -v 4000000; SHADOW_TEST=1 SDL_VIDEO_DRIVER=offscreen SHADOW_TEST_DIR=<tmp>/testdir SHADOW_SHOT=<tmp>/shots timeout 300 nice ./zig-out/bin/shadow)`
   → must end with `test: ok`. Screenshots are BMP; convert to PNG to look at them.
 - After UI changes, look at the screenshots, not only the test result.
+- Speed: a debug build computes a film in ~0.7 s and draws the lamp's light in ~1 s;
+  a release build in ~0.2 s / ~0.25 s.
 - Windows: `zig build -Dtarget=x86_64-windows`; check the imports and subsystem of the PE file.
 
 ## Layout
 
 - `src/main.zig`: SDL3 window, LVGL display driver, mouse/keyboard input, shortcuts.
-- `src/ui.zig`: menu, page frame, settings panel, navigation. `refs` exposes widgets to the test.
+- `src/ui.zig`: menu, page frame (title, toolbar, drawing card, information, settings
+  panel), navigation. `refs` exposes widgets to the test.
+- `src/pages.zig`: products (Night Lamp, Candle Glass) and their pages.
 - `src/style.zig`: colors, scale (`dp`), fonts, widget helpers.
-- `src/lv_helpers.c`: LVGL fields with bit fields (opaque in Zig).
+- `src/settings.zig`: the table of settings fields (label, kind, when shown), defaults,
+  light source presets, the values of a product (kept as the text the fields show)
+  and the settings panel built from the table.
+- `src/workbench.zig`: per-product state (`Bench`: values, picture, analysis, computed
+  result), computing the film on a worker thread (a timer picks up the result),
+  suggestions, information under the drawing, picture loading.
+- `src/views.zig`: the drawings: Image, Film, Light (lamp), with the glass, labels and
+  scale bar drawn over the computed pixels.
+- `src/canvas.zig` + `src/draw.c`: an LVGL canvas with its own pixel buffer; shapes and
+  text go through C because LVGL's draw descriptors have bit fields (opaque in Zig).
+- `src/picture.zig` + `src/image.c`: picture files (stb_image), resampling, the
+  brightness grid the calculation reads; PNG writing (stb_image_write).
+- `src/demo.zig`: the sample pictures, drawn on a hidden canvas.
+- `src/dialogs.zig`: native open/save dialogs through SDL (result via an atomic flag).
+- `src/lv_helpers.c`: LVGL fields with bit fields (fonts, draw buffers).
 - `src/app_test.zig`: in-app test.
-- `src/core/`: the calculation, no UI (module `core`). Port of shadow2's `lib/shadow`,
-  `lib/lamp`, `lib/candle`:
+- `src/core/`: the calculation, no UI (module `core`):
   - `format.zig`: JavaScript-compatible number text (`jsFixed` = toFixed, `jsNum`, `jsRound`).
   - `film.zig`: pattern settings, film raster, `mapFilm` (film pixel → lit surface,
     exact every 4 px and interpolated, stored as f32), `fillFilm`.
@@ -52,25 +71,14 @@ the reference for behavior and results. Platform layer and conventions come from
     the first version) and drawn on screen.
   - `png.zig`: pHYs chunk so PNGs print at actual size.
   - `reference_test.zig`: compares with `test/reference/reference.json` (made by
-    `gen_reference.js` from the first version, `~/project/shadow`). Tolerances are
-    the same as in shadow2's Go tests.
-
-## Porting notes (Go/JavaScript → Zig)
-
-- `Math.round` → `jsRound` (floor(x + 0.5)); `toFixed` → `jsFixed`; number to text → `jsNum`.
-- Zig array literals assigned to the same array alias: `q.* = .{ f(q[0]), g(q[0]) }`
-  writes q[0] before g reads it. Copy first (see `parts.zig` slot).
-- Closures (sampler, projector) become a context + function pointer (`film.Sampler`)
-  or a struct passed as `anytype` (`mapFilm`).
-- The app sets `Grid` to `wall`; `film` stays for the reference tests.
+    `gen_reference.js` from the first version).
 
 ## Plan
 
 Phases, each ending with a commit:
 
 1. Skeleton: build, platform layer, app frame (menu, pages, settings panel), in-app test.
-2. Calculation core in Zig (no UI), checked against shadow2's reference results
-   (`spa/lib/testdata/reference.json`, made from the first JavaScript version).
+2. Calculation core in Zig (no UI), checked against the first version's results.
 3. Night lamp workbench: settings panel, picture loading, Image / Film / Light views,
    computing off the UI thread.
 4. Output: print and laser files (PNG with dpi, SVG), parts drawing on screen and as SVG.
@@ -80,5 +88,15 @@ Phases, each ending with a commit:
 ## Notes
 
 - `@cImport` is gone in Zig 0.17: C headers go through `b.addTranslateC`.
+  Optimize modes are `.debug`, `.safe`, `.fast`, `.small`.
 - LVGL 9.6 deprecates `lv_obj_add_flag(.., HIDDEN)` / `CLICKABLE` and NULL displays;
   use `lv_obj_set_hidden`, `lv_obj_set_clickable`, `lv_display_get_default()`.
+- LVGL 9.6's canvas destructor passes the address of its buffer pointer to the image
+  cache ("invalid magic" error); `Canvas.destroy` detaches the buffer first.
+- Zig array literals assigned to the same array alias: `q.* = .{ f(q[0]), g(q[0]) }`
+  writes q[0] before g reads it. Copy first (see `parts.zig` slot).
+- Numbers that JavaScript formatted: `Math.round` → `jsRound`, `toFixed` → `jsFixed`,
+  number to text → `jsNum`.
+- The app sets the halftone grid to `wall`; `film` stays for the reference tests.
+- The page's toolbar items are created before the drawing is sized: a widget added
+  later changes the drawing area (the timer redraws if the size changes anyway).

@@ -32,8 +32,15 @@ pub fn build(b: *std.Build) void {
         .flags = c_flags,
     });
 
-    // C helpers for LVGL fields Zig cannot reach (bit fields)
+    // C helpers for LVGL fields Zig cannot reach (bit fields), and canvas drawing
     lvgl_lib.root_module.addCSourceFile(.{ .file = b.path("src/lv_helpers.c"), .flags = c_flags });
+    lvgl_lib.root_module.addCSourceFile(.{ .file = b.path("src/draw.c"), .flags = c_flags });
+
+    // Picture files with stb_image / stb_image_write. Always optimized:
+    // decoding and encoding large pictures takes seconds at -O0.
+    const stb_dep = b.dependency("stb", .{});
+    lvgl_lib.root_module.addIncludePath(stb_dep.path(""));
+    lvgl_lib.root_module.addCSourceFile(.{ .file = b.path("src/image.c"), .flags = &.{ "-std=gnu11", "-O2" } });
 
     // lvgl.h -> Zig
     const lvgl_c = b.addTranslateC(.{

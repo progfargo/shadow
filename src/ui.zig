@@ -13,43 +13,13 @@ const sdl = @import("sdl3");
 const st = @import("style.zig");
 const dp = st.dp;
 
-pub const Product = enum {
-    lamp,
-    candle,
-
-    pub fn label(p: Product) [*:0]const u8 {
-        return switch (p) {
-            .lamp => "Night Lamp",
-            .candle => "Candle Glass",
-        };
-    }
-};
-
-pub const Page = enum {
-    start,
-    image,
-    film,
-    light,
-    parts,
-
-    pub fn label(p: Page) [*:0]const u8 {
-        return switch (p) {
-            .start => "Start",
-            .image => "Image",
-            .film => "Film",
-            .light => "Light",
-            .parts => "Parts",
-        };
-    }
-};
-
-/// Pages of each product, in menu order
-pub fn pagesOf(p: Product) []const Page {
-    return switch (p) {
-        .lamp => &.{ .image, .film, .light, .parts },
-        .candle => &.{ .image, .film, .light },
-    };
-}
+const pages = @import("pages.zig");
+pub const Product = pages.Product;
+pub const Page = pages.Page;
+pub const pagesOf = pages.pagesOf;
+const workbench = @import("workbench.zig");
+pub const wb = workbench;
+pub const settings = @import("settings.zig");
 
 // ---------------------------------------------------------------------------
 // State
@@ -84,16 +54,17 @@ pub var refs: Refs = .{};
 // Setup
 
 pub fn init(allocator: Allocator, io_: Io, window: ?*sdl.SDL_Window, ui_scale: f32) !void {
-    _ = window;
     gpa = allocator;
     io = io_;
     st.frame_arena = .init(gpa);
+    workbench.init(gpa, io, window);
     // Wide windows start with the settings panel open
     settings_open = lv.lv_display_get_horizontal_resolution(lv.lv_display_get_default()) >= @as(i32, @intFromFloat(1100 * ui_scale));
     try build(ui_scale);
 }
 
 pub fn deinit() void {
+    workbench.deinit();
     // Delete widgets before the fonts they use
     lv.lv_obj_clean(lv.lv_layer_top());
     lv.lv_obj_clean(lv.lv_screen_active());
@@ -104,6 +75,7 @@ pub fn deinit() void {
 /// Rebuilds the UI for a new scale; the current page is kept.
 pub fn setScale(ui_scale: f32) !void {
     if (@abs(ui_scale - st.scale) < 0.01) return;
+    workbench.leave();
     lv.lv_obj_clean(lv.lv_layer_top());
     lv.lv_obj_clean(lv.lv_screen_active());
     st.destroyFonts();
@@ -112,6 +84,7 @@ pub fn setScale(ui_scale: f32) !void {
 
 pub fn onResize() void {
     lv.lv_obj_update_layout(lv.lv_screen_active());
+    workbench.onResize();
 }
 
 pub fn shouldQuit() bool {
@@ -131,10 +104,16 @@ pub fn back() bool {
     return false;
 }
 
-pub fn openPictureShortcut() void {}
+/// Ctrl+O: choose a picture (opens the Night Lamp first on the start page)
+pub fn openPictureShortcut() void {
+    if (page == .start) navigate(.lamp, .image);
+    workbench.choosePicture();
+}
 
+/// A picture given on the command line: opens the Night Lamp with it.
 pub fn openPicturePath(path: []const u8) void {
-    _ = path;
+    if (page == .start) navigate(.lamp, .image);
+    workbench.openPicturePath(path);
 }
 
 fn build(ui_scale: f32) !void {
@@ -283,12 +262,16 @@ fn onToggleSettings(_: ?*lv.lv_event_t) callconv(.c) void {
 fn toggleSettings() void {
     settings_open = !settings_open;
     lv.lv_obj_set_hidden(settings_panel, !settings_open or page == .start);
+    // the drawing gets the freed width
+    workbench.onResize();
 }
 
 /// Builds the current page in the main area.
 fn showPage() void {
+    workbench.leave();
     _ = st.frame_arena.reset(.retain_capacity);
     lv.lv_obj_clean(main_area);
+    lv.lv_obj_clean(settings_panel);
     refs.settings_btn = null;
     markMenu();
     lv.lv_obj_set_hidden(settings_panel, !settings_open or page == .start);
@@ -310,14 +293,37 @@ fn showPage() void {
     refs.page_title = st.title(main_area, st.zfmt("{s}  " ++ lv.LV_SYMBOL_RIGHT ++ "  {s}", .{ product.label(), page.label() }));
 
     const bar = st.box(main_area, lv.LV_FLEX_FLOW_ROW);
-    st.spacer(bar);
-    refs.settings_btn = st.outlineButton(bar, lv.LV_SYMBOL_SETTINGS ++ "  Settings", onToggleSettings, null);
 
     const view = st.card(main_area);
     lv.lv_obj_set_width(view, lv.lv_pct(100));
     lv.lv_obj_set_flex_grow(view, 1);
+    lv.lv_obj_set_style_pad_all(view, 0, 0);
+    lv.lv_obj_set_style_clip_corner(view, true, 0);
     lv.lv_obj_set_style_bg_color(view, lv.lv_color_hex(st.color_stage), 0);
 
-    lv.lv_obj_clean(settings_panel);
-    _ = st.title(settings_panel, "Settings");
+    // Information under the drawing: scrolls when it is long
+    const info = lv.lv_obj_create(main_area);
+    lv.lv_obj_remove_style_all(info);
+    lv.lv_obj_set_size(info, lv.lv_pct(100), lv.LV_SIZE_CONTENT);
+    lv.lv_obj_set_style_max_height(info, lv.lv_pct(32), 0);
+    lv.lv_obj_set_flex_flow(info, lv.LV_FLEX_FLOW_COLUMN);
+    lv.lv_obj_set_style_pad_row(info, dp(4), 0);
+    lv.lv_obj_set_scroll_dir(info, lv.LV_DIR_VER);
+
+    const head = st.box(settings_panel, lv.LV_FLEX_FLOW_ROW);
+    const t = st.title(head, "Settings");
+    lv.lv_obj_set_width(t, 1);
+    lv.lv_obj_set_flex_grow(t, 1);
+    const close = lv.lv_button_create(head);
+    lv.lv_obj_remove_style_all(close);
+    lv.lv_obj_set_style_pad_all(close, dp(6), 0);
+    _ = lv.lv_label_create(close);
+    lv.lv_label_set_text(lv.lv_obj_get_child(close, 0), lv.LV_SYMBOL_CLOSE);
+    _ = lv.lv_obj_add_event_cb(close, onToggleSettings, lv.LV_EVENT_CLICKED, null);
+
+    // The page's own toolbar items go before this button
+    refs.settings_btn = st.outlineButton(bar, lv.LV_SYMBOL_SETTINGS ++ "  Settings", onToggleSettings, null);
+    workbench.show(product, page, .{ .toolbar = bar, .view = view, .info = info, .panel = settings_panel }) catch |e| {
+        _ = st.label(info, st.zfmt("Cannot show the page: {s}", .{@errorName(e)}));
+    };
 }

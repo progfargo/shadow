@@ -36,6 +36,12 @@ fn tap(obj: ?*lv.lv_obj_t) !void {
     settle();
 }
 
+/// Waits until the film is computed and drawn.
+fn compute() void {
+    ui.wb.finishNow();
+    settle();
+}
+
 fn shot(name: []const u8) void {
     const d = sdl.SDL_getenv("SHADOW_SHOT") orelse return;
     settle();
@@ -53,13 +59,44 @@ fn expect(ok: bool, comptime what: []const u8) !void {
     }
 }
 
+/// Replaces a text field's content by typing, then presses Enter.
+fn typeInto(ta: ?*lv.lv_obj_t, text: []const u8) !void {
+    try tap(ta);
+    lv.lv_textarea_set_text(ta, "");
+    main.typeText(text);
+    main.pushKey(lv.LV_KEY_ENTER);
+    main.flushKeys();
+    settle();
+}
+
+fn choose(dd: ?*lv.lv_obj_t, index: u32) !void {
+    if (dd == null) return error.TestObjectMissing;
+    lv.lv_dropdown_set_selected(dd, index);
+    _ = lv.lv_obj_send_event(dd, lv.LV_EVENT_VALUE_CHANGED, null);
+    settle();
+}
+
+fn control(id: ui.settings.Id) ?*lv.lv_obj_t {
+    return ui.settings.controls.get(id);
+}
+
+fn bench() *ui.wb.Bench {
+    return ui.wb.cur.?;
+}
+
 fn isVisible(obj: ?*lv.lv_obj_t) bool {
     return obj != null and !lv.lv_obj_is_hidden(obj);
 }
 
+var dir: []const u8 = "";
+
 pub fn run(allocator: std.mem.Allocator, io_: Io) !void {
     gpa = allocator;
     io = io_;
+    dir = if (sdl.SDL_getenv("SHADOW_TEST_DIR")) |d| std.mem.span(d) else return error.SetShadowTestDir;
+    const cwd = Io.Dir.cwd();
+    cwd.deleteTree(io, dir) catch {};
+    try cwd.createDirPath(io, dir);
 
     settle();
     try expect(ui.page == .start, "starts on the start page");
@@ -69,12 +106,57 @@ pub fn run(allocator: std.mem.Allocator, io_: Io) !void {
     for (ui.refs.lamp_btns, ui.pagesOf(.lamp)) |b, pg| {
         try tap(b);
         try expect(ui.product == .lamp and ui.page == pg, "lamp page opened from the menu");
+        compute();
+        try expect(ui.wb.cur.?.lamp_res != null, "lamp film computed");
+        var name: [32]u8 = undefined;
+        shot(std.fmt.bufPrint(&name, "lamp_{s}", .{@tagName(pg)}) catch "lamp");
     }
     for (ui.refs.candle_btns, ui.pagesOf(.candle)) |b, pg| {
         try tap(b);
         try expect(ui.product == .candle and ui.page == pg, "candle page opened from the menu");
     }
     shot("01_candle_light");
+
+    // --- Settings change the film ---
+    try tap(ui.refs.lamp_btns[0]);
+    compute();
+    const open0 = bench().lamp_res.?.film.open();
+    try choose(control(.mode), 1); // Halftone
+    try expect(isVisible(ui.settings.rows.get(.pitch).?) and !isVisible(ui.settings.rows.get(.threshold).?), "halftone fields shown");
+    compute();
+    try expect(bench().lamp_res.?.p.pattern.mode == .halftone, "halftone computed");
+    try expect(bench().lamp_res.?.film.open() != open0, "film changed");
+    try expect(ui.wb.refs.apply_suggested_btn != null, "suggestion offered");
+    shot("03_halftone");
+    try tap(ui.wb.refs.apply_suggested_btn);
+    compute();
+    try expect(bench().lamp_res.?.p.pattern.mode == .binary and ui.wb.refs.apply_suggested_btn == null, "suggestion applied");
+
+    try typeInto(control(.iw), "300");
+    compute();
+    try expect(bench().lamp_res.?.p.placement.iw == 300, "image width typed");
+    try tap(control(.invert));
+    compute();
+    try expect(bench().lamp_res.?.p.pattern.invert, "invert checked");
+
+    // --- A picture from a file; the settings stay ---
+    {
+        var path_buf: [512]u8 = undefined;
+        const path = try std.fmt.bufPrintSentinel(&path_buf, "{s}/picture.bmp", .{dir}, 0);
+        const surf = sdl.SDL_CreateSurface(40, 20, sdl.SDL_PIXELFORMAT_XRGB8888) orelse return error.TestSurface;
+        defer sdl.SDL_DestroySurface(surf);
+        _ = sdl.SDL_FillSurfaceRect(surf, null, 0xFFFFFF);
+        var r: sdl.SDL_Rect = .{ .x = 10, .y = 5, .w = 20, .h = 10 };
+        _ = sdl.SDL_FillSurfaceRect(surf, &r, 0x000000);
+        if (!sdl.SDL_SaveBMP(surf, path.ptr)) return error.TestSaveBmp;
+        ui.wb.openPicturePath(path);
+        compute();
+        try expect(std.mem.eql(u8, bench().picture_name.get(), "picture.bmp") and bench().picture.w == 40, "picture loaded");
+        try expect(bench().lamp_res.?.p.placement.aspect == 0.5 and bench().lamp_res.?.p.pattern.invert, "settings kept, aspect from the picture");
+        shot("04_picture");
+        ui.wb.openPicturePath("no/such/file.png");
+        try expect(std.mem.startsWith(u8, ui.wb.status_text, "Cannot open the picture"), "missing file reported");
+    }
 
     // --- The settings panel opens and closes, and stays so between pages ---
     const was_open = ui.settingsOpen();
