@@ -290,6 +290,12 @@ fn benchOf(product: Product) !*Bench {
     b.analyze();
     // Only on the first start the sample picture's suggestion is applied
     b.applySuggestions();
+    // The sample portrait looks best as a shadow portrait on a lit wall, so
+    // it starts without invert (the suggestion would invert it).
+    b.vals.set(.invert, "false");
+    if (b.analysis) |*a| {
+        if (b.vals.is(.mode, "binary")) b.vals.setNum(.threshold, suggest.suggestedThreshold(a, false));
+    }
     slot.* = b;
     return b;
 }
