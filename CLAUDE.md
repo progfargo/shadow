@@ -71,6 +71,7 @@ and conventions come from `~/project/github/eexif` (desktop) and `~/project/repe
 - `src/dialogs.zig`: native open/save dialogs through SDL (result via an atomic flag).
 - `src/lv_helpers.c`: LVGL fields with bit fields (fonts, draw buffers).
 - `src/app_test.zig`: in-app test.
+- `docs/`: screenshots for the README (from the in-app test's `SHADOW_SHOT`).
 - `src/core/`: the calculation, no UI (module `core`):
   - `format.zig`: JavaScript-compatible number text (`jsFixed` = toFixed, `jsNum`, `jsRound`).
   - `film.zig`: pattern settings, film raster, `mapFilm` (film pixel → lit surface,
@@ -95,6 +96,9 @@ Phases, each ending with a commit:
 4. Output: print and laser files (PNG with dpi, SVG), parts drawing on screen and as SVG.
 5. Candle glass: views, flame animation, simulation sliders.
 6. Picture suggestions, Ctrl + drag, finishing, README, Windows build check.
+
+All phases are done. Open: test on Windows and macOS; the project has no license
+file yet (the user decides).
 
 ## Notes
 
