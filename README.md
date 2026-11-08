@@ -121,6 +121,10 @@ It prints `test: ok` at the end. Add `SHADOW_SHOT=<dir>` to save screenshots.
   the window and the native file dialogs), so `zig build` on a Mac should work.
   Building for macOS from another OS is not supported, as it needs Apple's SDK.
 
+Built with [Claude Code](https://claude.com/claude-code). I defined the
+features and requirements, chose the tools (Zig, LVGL, SDL3, stb),
+reviewed the results and tested the app; Claude wrote most of the code.
+
 ## License
 
 Sample picture: portrait of Audrey Hepburn, photo via Newscom
