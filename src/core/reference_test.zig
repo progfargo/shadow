@@ -1,6 +1,6 @@
-//! Compares the calculation with the first version of the tool (JavaScript).
-//! The reference results are made by test/reference/gen_reference.js; this
-//! test repeats the same test images and parameter sets.
+//! Compares the calculation with the first version of the tool.
+//! test/reference/reference.json holds that version's results for a set of
+//! parameters and test images; this test repeats the same cases.
 
 const std = @import("std");
 const testing = std.testing;
