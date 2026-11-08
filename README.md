@@ -130,8 +130,5 @@ reviewed the results and tested the app; Claude wrote most of the code.
 
 ## License
 
-Sample picture: portrait of Audrey Hepburn, photo via Newscom
-(`assets/sample_portrait.jpg`).
-
 Bundled fonts: Montserrat (SIL Open Font License, `assets/Montserrat-OFL.txt`) and
 Font Awesome Free (`assets/FontAwesome-LICENSE.txt`).
