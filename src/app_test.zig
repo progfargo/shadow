@@ -12,6 +12,7 @@ const sdl = @import("sdl3");
 const lv = @import("lvgl");
 const ui = @import("ui");
 const main = @import("main.zig");
+const core = ui.core;
 
 var gpa: std.mem.Allocator = undefined;
 var io: Io = undefined;
@@ -186,23 +187,28 @@ pub fn run(allocator: std.mem.Allocator, io_: Io) !void {
     try tap(ui.refs.lamp_btns[0]);
     compute();
     const open0 = bench().lamp_res.?.film.open();
-    try choose(control(.mode), 1); // Halftone
-    try expect(isVisible(ui.settings.rows.get(.pitch).?) and !isVisible(ui.settings.rows.get(.threshold).?), "halftone fields shown");
+    // The sample picture's suggestion is applied at start; switch to the other mode
+    const suggested = bench().lamp_res.?.p.pattern.mode;
+    const other: core.film.Mode = if (suggested == .binary) .halftone else .binary;
+    try choose(control(.mode), @intFromEnum(other));
+    const ht = other == .halftone;
+    try expect(isVisible(ui.settings.rows.get(.pitch).?) == ht and isVisible(ui.settings.rows.get(.threshold).?) == !ht, "fields of the mode shown");
     compute();
-    try expect(bench().lamp_res.?.p.pattern.mode == .halftone, "halftone computed");
+    try expect(bench().lamp_res.?.p.pattern.mode == other, "other mode computed");
     try expect(bench().lamp_res.?.film.open() != open0, "film changed");
     try expect(ui.wb.refs.apply_suggested_btn != null, "suggestion offered");
-    shot("03_halftone");
+    shot("03_other_mode");
     try tap(ui.wb.refs.apply_suggested_btn);
     compute();
-    try expect(bench().lamp_res.?.p.pattern.mode == .binary and ui.wb.refs.apply_suggested_btn == null, "suggestion applied");
+    try expect(bench().lamp_res.?.p.pattern.mode == suggested and ui.wb.refs.apply_suggested_btn == null, "suggestion applied");
 
     try typeInto(control(.iw), "300");
     compute();
     try expect(bench().lamp_res.?.p.placement.iw == 300, "image width typed");
+    const invert0 = bench().lamp_res.?.p.pattern.invert;
     try tap(control(.invert));
     compute();
-    try expect(bench().lamp_res.?.p.pattern.invert, "invert checked");
+    try expect(bench().lamp_res.?.p.pattern.invert != invert0, "invert toggled");
 
     // --- A picture from a file; the settings stay ---
     {
@@ -217,7 +223,7 @@ pub fn run(allocator: std.mem.Allocator, io_: Io) !void {
         ui.wb.openPicturePath(path);
         compute();
         try expect(std.mem.eql(u8, bench().picture_name.get(), "picture.bmp") and bench().picture.w == 40, "picture loaded");
-        try expect(bench().lamp_res.?.p.placement.aspect == 0.5 and bench().lamp_res.?.p.pattern.invert, "settings kept, aspect from the picture");
+        try expect(bench().lamp_res.?.p.placement.aspect == 0.5 and bench().lamp_res.?.p.pattern.invert != invert0, "settings kept, aspect from the picture");
         shot("04_picture");
         ui.wb.openPicturePath("no/such/file.png");
         try expect(std.mem.startsWith(u8, ui.wb.status_text, "Cannot open the picture"), "missing file reported");

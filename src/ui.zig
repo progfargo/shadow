@@ -20,6 +20,7 @@ pub const pagesOf = pages.pagesOf;
 const workbench = @import("workbench.zig");
 pub const wb = workbench;
 pub const settings = @import("settings.zig");
+pub const core = @import("core");
 
 // ---------------------------------------------------------------------------
 // State

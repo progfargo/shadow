@@ -29,7 +29,6 @@ const views = @import("views.zig");
 const parts_view = @import("parts_view.zig");
 pub const flame = @import("flame.zig");
 pub const exporter = @import("export.zig");
-const demo = @import("demo.zig");
 const dialogs = @import("dialogs.zig");
 const pic = @import("picture.zig");
 const Picture = pic.Picture;
@@ -207,6 +206,9 @@ pub const Suggestion = struct {
     }
 };
 
+/// The picture both products start with (assets/sample_portrait.jpg)
+const sample_picture = @embedFile("sample_picture");
+
 var benches: [2]?*Bench = .{ null, null };
 pub var cur: ?*Bench = null;
 pub var page: Page = .start;
@@ -284,7 +286,7 @@ fn benchOf(product: Product) !*Bench {
     if (slot.*) |b| return b;
     const b = try gpa.create(Bench);
     errdefer gpa.destroy(b);
-    b.* = .{ .product = product, .vals = settings.defaultValues(product), .picture = try demo.picture(gpa, product) };
+    b.* = .{ .product = product, .vals = settings.defaultValues(product), .picture = try Picture.decode(gpa, sample_picture) };
     b.analyze();
     // Only on the first start the sample picture's suggestion is applied
     b.applySuggestions();

@@ -43,7 +43,8 @@ and saves the film for printing or laser engraving.
     with its size in mm;
   - plain pattern for the rotary laser (black = laser fires);
   - parts drawing of the night lamp as SVG, 1:1.
-- Pictures: PNG, JPEG, BMP, GIF, TGA, PSD, PNM.
+- Pictures: PNG, JPEG, BMP, GIF, TGA, PSD, PNM. The app opens with a sample portrait
+  (`assets/sample_portrait.jpg`).
 
 ![The film](docs/lamp_film.png)
 
@@ -121,6 +122,9 @@ It prints `test: ok` at the end. Add `SHADOW_SHOT=<dir>` to save screenshots.
   Building for macOS from another OS is not supported, as it needs Apple's SDK.
 
 ## License
+
+Sample picture: 1950s studio publicity portrait of Audrey Hepburn, cropped
+(`assets/sample_portrait.jpg`).
 
 Bundled fonts: Montserrat (SIL Open Font License, `assets/Montserrat-OFL.txt`) and
 Font Awesome Free (`assets/FontAwesome-LICENSE.txt`).

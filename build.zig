@@ -75,6 +75,8 @@ pub fn build(b: *std.Build) void {
     ui_module.addAnonymousImport("font_semibold", .{ .root_source_file = b.path("assets/Montserrat-SemiBold.ttf") });
     // Icons: LVGL's LV_SYMBOL_* codes are Font Awesome code points
     ui_module.addAnonymousImport("font_icons", .{ .root_source_file = b.path("assets/FontAwesome-Solid-900.ttf") });
+    // The picture the app opens with
+    ui_module.addAnonymousImport("sample_picture", .{ .root_source_file = b.path("assets/sample_portrait.jpg") });
 
     const main_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),

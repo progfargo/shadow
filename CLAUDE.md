@@ -67,7 +67,7 @@ and conventions come from `~/project/github/eexif` (desktop) and `~/project/repe
   small canvas and its pixels are turned and blended in.
 - `src/picture.zig` + `src/image.c`: picture files (stb_image), resampling, the
   brightness grid the calculation reads; PNG writing (stb_image_write).
-- `src/demo.zig`: the sample pictures, drawn on a hidden canvas.
+- `assets/sample_portrait.jpg`: the picture both products open with (embedded).
 - `src/dialogs.zig`: native open/save dialogs through SDL (result via an atomic flag).
 - `src/lv_helpers.c`: LVGL fields with bit fields (fonts, draw buffers).
 - `src/app_test.zig`: in-app test.
