@@ -226,6 +226,26 @@ pub const Refs = struct {
     save_svg_btn: ?*lv.lv_obj_t = null,
     save_parts_btn: ?*lv.lv_obj_t = null,
 };
+/// Ctrl (Cmd on macOS) was held when the mouse button went down (main.zig)
+pub var ctrl_held = false;
+
+/// Ctrl + drag moves the glass over the picture; on release the picture
+/// center moves the other way and the film is computed again.
+pub const Drag = struct {
+    on: bool = false,
+    start: lv.lv_point_t = .{ .x = 0, .y = 0 },
+    ix: f64 = 0, // picture center at the start
+    iy: f64 = 0,
+    ox: f64 = 0, // glass offset (mm)
+    oy: f64 = 0,
+};
+pub var drag: Drag = .{};
+
+/// Pixels per mm of the current drawing (for the in-app test)
+pub fn viewScale() f64 {
+    return if (views.base_view) |v| v.sc else 1;
+}
+
 /// Size of the drawing area the canvas was last drawn for
 var drawn_for: [2]i32 = .{ 0, 0 };
 /// What the open save dialog is for
@@ -330,6 +350,14 @@ pub fn show(product: Product, pg: Page, frame: Frame) !void {
     canvas = try cv.Canvas.create(frame.view, 1, 1);
     refs.canvas = canvas.obj;
     lv.lv_obj_center(canvas.obj);
+    drag = .{};
+    if (pg == .image or pg == .light) {
+        lv.lv_obj_set_clickable(canvas.obj, true);
+        _ = lv.lv_obj_add_event_cb(canvas.obj, onDrag, lv.LV_EVENT_PRESSED, null);
+        _ = lv.lv_obj_add_event_cb(canvas.obj, onDrag, lv.LV_EVENT_PRESSING, null);
+        _ = lv.lv_obj_add_event_cb(canvas.obj, onDrag, lv.LV_EVENT_RELEASED, null);
+        _ = lv.lv_obj_add_event_cb(canvas.obj, onDrag, lv.LV_EVENT_PRESS_LOST, null);
+    }
 
     if (b.computedFilm() == null or b.dirty) {
         requestCompute(b);
@@ -465,6 +493,43 @@ pub fn applySuggested() void {
     b.applySuggestions();
     settings.sync(&b.vals);
     requestCompute(b);
+}
+
+// ---------------------------------------------------------------------------
+// Ctrl + drag
+
+fn onDrag(e: ?*lv.lv_event_t) callconv(.c) void {
+    const b = cur orelse return;
+    const code = lv.lv_event_get_code(e);
+    var pt: lv.lv_point_t = undefined;
+    lv.lv_indev_get_point(lv.lv_indev_active(), &pt);
+    switch (code) {
+        lv.LV_EVENT_PRESSED => {
+            if (!ctrl_held or views.base_view == null or b.computedFilm() == null or job != null) return;
+            drag = .{ .on = true, .start = pt, .ix = b.vals.num(.ix), .iy = b.vals.num(.iy) };
+        },
+        lv.LV_EVENT_PRESSING => {
+            if (!drag.on) return;
+            const v = views.base_view.?;
+            drag.ox = @as(f64, @floatFromInt(pt.x - drag.start.x)) / v.sc;
+            drag.oy = -@as(f64, @floatFromInt(pt.y - drag.start.y)) / v.sc;
+            if (!views.restoreBase(&canvas)) return;
+            canvas.begin();
+            views.drawBottle(b, v, drag.ox, drag.oy);
+            views.drawScale(&canvas, v);
+            canvas.end();
+            canvas.invalidate();
+        },
+        else => { // released or lost
+            if (!drag.on) return;
+            drag.on = false;
+            if (@abs(drag.ox) < 0.5 and @abs(drag.oy) < 0.5) return;
+            b.vals.setNum(.ix, fmt.jsRound(drag.ix - drag.ox));
+            b.vals.setNum(.iy, fmt.jsRound(drag.iy - drag.oy));
+            settings.sync(&b.vals);
+            requestCompute(b);
+        },
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -756,9 +821,8 @@ fn updateInfo() !void {
     var note: std.Io.Writer.Allocating = .init(a);
     if (try b.suggestionNote(&note.writer)) {
         const row = st.box(box, lv.LV_FLEX_FLOW_ROW_WRAP);
-        const l = st.muted(row, st.zfmt("{s}", .{note.written()}));
-        lv.lv_obj_set_width(l, lv.LV_SIZE_CONTENT);
-        lv.lv_obj_set_style_max_width(l, lv.lv_pct(100), 0);
+        // full width so the note wraps; the button goes below it
+        _ = st.muted(row, st.zfmt("{s}", .{note.written()}));
         refs.apply_suggested_btn = st.smallButton(row, "Apply suggested", onApplySuggested, null);
     }
     _ = addLine(box, surfaceNote(b), true);

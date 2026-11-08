@@ -36,6 +36,27 @@ fn tap(obj: ?*lv.lv_obj_t) !void {
     settle();
 }
 
+/// Presses on the middle of an object, moves by (dx, dy) in steps and releases.
+fn dragBy(obj: ?*lv.lv_obj_t, dx: i32, dy: i32) !void {
+    const o = obj orelse return error.TestObjectMissing;
+    var area: lv.lv_area_t = undefined;
+    lv.lv_obj_get_coords(o, &area);
+    const x0 = @divTrunc(area.x1 + area.x2, 2);
+    const y0 = @divTrunc(area.y1 + area.y2, 2);
+    main.mouse_x = x0;
+    main.mouse_y = y0;
+    main.mouse_down = true;
+    lv.lv_indev_read(main.pointer);
+    for (1..7) |i| {
+        main.mouse_x = x0 + @divTrunc(dx * @as(i32, @intCast(i)), 6);
+        main.mouse_y = y0 + @divTrunc(dy * @as(i32, @intCast(i)), 6);
+        lv.lv_indev_read(main.pointer);
+    }
+    main.mouse_down = false;
+    lv.lv_indev_read(main.pointer);
+    settle();
+}
+
 /// Waits until the film is computed and drawn.
 fn compute() void {
     ui.wb.finishNow();
@@ -200,6 +221,24 @@ pub fn run(allocator: std.mem.Allocator, io_: Io) !void {
         shot("04_picture");
         ui.wb.openPicturePath("no/such/file.png");
         try expect(std.mem.startsWith(u8, ui.wb.status_text, "Cannot open the picture"), "missing file reported");
+    }
+
+    // --- Ctrl + drag moves the glass; the picture center moves the other way ---
+    try tap(ui.refs.lamp_btns[0]);
+    compute();
+    {
+        const ix0 = bench().vals.num(.ix);
+        const sc = ui.wb.viewScale();
+        ui.wb.ctrl_held = true;
+        try dragBy(ui.wb.refs.canvas, 60, 0);
+        ui.wb.ctrl_held = false;
+        compute();
+        const want = @floor(ix0 - 60 / sc + 0.5);
+        try expect(bench().vals.num(.ix) == want and bench().lamp_res.?.p.placement.ix == want, "Ctrl + drag moved the picture");
+        shot("08_dragged");
+        // Without Ctrl nothing moves
+        try dragBy(ui.wb.refs.canvas, 60, 0);
+        try expect(bench().vals.num(.ix) == want and !ui.wb.busy(), "plain drag does nothing");
     }
 
     // --- Saving: print PNG with its resolution, SVG, laser pattern, parts drawing ---

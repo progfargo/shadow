@@ -30,8 +30,6 @@ var quit_requested = false;
 
 pub var product: Product = .lamp;
 pub var page: Page = .start;
-/// Ctrl (Cmd on macOS) was held when the mouse button went down
-pub var ctrl_held = false;
 /// The settings panel is open (kept between pages)
 var settings_open = true;
 

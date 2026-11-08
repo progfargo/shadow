@@ -249,7 +249,7 @@ pub fn handleEvent(ev: *const sdl.SDL_Event) !void {
             mouse_y = @intFromFloat(ev.button.y * pixel_density);
             mouse_down = ev.type == sdl.SDL_EVENT_MOUSE_BUTTON_DOWN;
             // Ctrl (Cmd on macOS) + drag moves the glass over the picture
-            ui.ctrl_held = (sdl.SDL_GetModState() & (sdl.SDL_KMOD_CTRL | sdl.SDL_KMOD_GUI)) != 0;
+            ui.wb.ctrl_held = (sdl.SDL_GetModState() & (sdl.SDL_KMOD_CTRL | sdl.SDL_KMOD_GUI)) != 0;
             lv.lv_indev_read(pointer);
         },
         sdl.SDL_EVENT_MOUSE_WHEEL => scrollUnderMouse(@intFromFloat(ev.wheel.y * 40 * uiScale())),

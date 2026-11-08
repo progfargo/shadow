@@ -145,7 +145,7 @@ pub fn running() bool {
 fn onFrame(_: ?*lv.lv_timer_t) callconv(.c) void {
     const c = target orelse return;
     const b = wb.cur orelse return stop();
-    if (b.candle_res == null) return;
+    if (b.candle_res == null or wb.drag.on) return;
     // Nothing to see while the window is minimized or hidden
     if (window) |w| {
         if (sdl.SDL_GetWindowFlags(w) & (sdl.SDL_WINDOW_MINIMIZED | sdl.SDL_WINDOW_HIDDEN | sdl.SDL_WINDOW_OCCLUDED) != 0) return;
