@@ -105,8 +105,7 @@ Phases, each ending with a commit:
 5. Candle glass: views, flame animation, simulation sliders.
 6. Picture suggestions, Ctrl + drag, finishing, README, Windows build check.
 
-All phases are done. Open: test on Windows and macOS; the project has no license
-file yet (the user decides).
+All phases are done; MIT license. Open: test on Windows and macOS.
 
 ## Notes
 

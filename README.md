@@ -130,5 +130,5 @@ reviewed the results and tested the app; Claude wrote most of the code.
 
 ## License
 
-Bundled fonts: Montserrat (SIL Open Font License, `assets/Montserrat-OFL.txt`) and
+MIT (see `LICENSE`). Bundled fonts: Montserrat (SIL Open Font License, `assets/Montserrat-OFL.txt`) and
 Font Awesome Free (`assets/FontAwesome-LICENSE.txt`).

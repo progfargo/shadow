@@ -25,5 +25,6 @@
         "assets",
         "test",
         "README.md",
+        "LICENSE",
     },
 }
