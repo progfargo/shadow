@@ -157,20 +157,15 @@ pub fn run(allocator: std.mem.Allocator, io_: Io) !void {
         shot(std.fmt.bufPrint(&name, "candle_{s}", .{@tagName(pg)}) catch "candle");
     }
 
-    // --- Frames of the flickering flame (SHADOW_FRAMES=<dir>), for the README animation ---
+    // --- Frames of the whole window with the flickering flame (SHADOW_FRAMES=<dir>),
+    // for the README animation ---
     if (sdl.SDL_getenv("SHADOW_FRAMES")) |d| {
-        var area: lv.lv_area_t = undefined;
-        lv.lv_obj_get_coords(ui.wb.refs.canvas, &area);
-        const x0: usize = @intCast(@max(0, area.x1));
-        const y0: usize = @intCast(@max(0, area.y1));
-        const w: c_int = @intCast(@min(area.x2 + 1, main.frame_w) - area.x1);
-        const h: c_int = @intCast(@min(area.y2 + 1, main.frame_h) - area.y1);
         for (0..36) |i| {
             ui.wb.flameFrame(@as(f64, @floatFromInt(i)) / 12);
             settle();
             var buf: [512]u8 = undefined;
             const path = try std.fmt.bufPrintSentinel(&buf, "{s}/frame_{d:0>2}.bmp", .{ std.mem.span(d), i }, 0);
-            const surf = sdl.SDL_CreateSurfaceFrom(w, h, sdl.SDL_PIXELFORMAT_XRGB8888, main.frame.ptr + y0 * @as(usize, @intCast(main.frame_w)) + x0, main.frame_w * 4) orelse return error.TestSurface;
+            const surf = sdl.SDL_CreateSurfaceFrom(main.frame_w, main.frame_h, sdl.SDL_PIXELFORMAT_XRGB8888, main.frame.ptr, main.frame_w * 4) orelse return error.TestSurface;
             defer sdl.SDL_DestroySurface(surf);
             _ = sdl.SDL_SaveBMP(surf, path.ptr);
         }

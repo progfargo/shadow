@@ -75,8 +75,9 @@ and conventions come from `~/project/github/eexif` (desktop) and `~/project/repe
 - `src/lv_helpers.c`: LVGL fields with bit fields (fonts, draw buffers).
 - `src/app_test.zig`: in-app test.
 - `docs/`: screenshots for the README (from the in-app test's `SHADOW_SHOT`).
-  `candle_flame.gif` comes from `SHADOW_FRAMES=<dir>` (36 frames of the candle's light,
-  1/12 s apart); the README uses the first 24 at 440 px wide, 64 colors (~1.5 MB).
+  `candle_flame.gif` comes from `SHADOW_FRAMES=<dir>` (36 frames of the whole window on
+  the candle's Light page, 1/12 s apart); the README uses the first 24 at 720 px wide,
+  96 colors (~1.4 MB).
 - `src/core/`: the calculation, no UI (module `core`):
   - `format.zig`: number text with the first version's rules: `roundHalfUp` (halves
     toward +infinity), `fixedText` (fixed decimals, exact value, halves away from zero),
