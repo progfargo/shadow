@@ -129,8 +129,37 @@ pub fn run(allocator: std.mem.Allocator, io_: Io) !void {
     for (ui.refs.candle_btns, ui.pagesOf(.candle)) |b, pg| {
         try tap(b);
         try expect(ui.product == .candle and ui.page == pg, "candle page opened from the menu");
+        compute();
+        try expect(ui.wb.cur.?.candle_res != null, "candle film computed");
+        var name: [32]u8 = undefined;
+        shot(std.fmt.bufPrint(&name, "candle_{s}", .{@tagName(pg)}) catch "candle");
     }
-    shot("01_candle_light");
+
+    // --- Candle simulation: the flame is animated, the sliders change only the light ---
+    try expect(ui.wb.flame.running(), "flame animated on the Light page");
+    {
+        const film_before = bench().candle_res.?.film.data.ptr;
+        const slider = control(.hnow);
+        try expect(lv.lv_slider_get_min_value(slider) == 100 * 18 and lv.lv_slider_get_max_value(slider) == 100 * 135, "flame slider fits the glass");
+        lv.lv_slider_set_value(slider, 100 * 90, false);
+        _ = lv.lv_obj_send_event(slider, lv.LV_EVENT_VALUE_CHANGED, null);
+        settle();
+        try expect(bench().vals.num(.hnow) == 90 and bench().hnow_touched, "flame height now moved");
+        try expect(!ui.wb.busy() and bench().candle_res.?.film.data.ptr == film_before, "the slider does not compute the film again");
+        const note = std.mem.span(lv.lv_label_get_text(ui.settings.flame_note));
+        try expect(std.mem.startsWith(u8, note, "Flame now 90 mm, design 60 mm.") and std.mem.indexOf(u8, note, "candle still hides") != null, "flame note");
+        shot("07_candle_flame_high");
+    }
+    try choose(control(.source), 1); // LED tealight
+    compute();
+    try expect(bench().vals.num(.cd) == 38 and bench().vals.num(.hd) == 30 and bench().candle_res.?.p.source == .led, "LED preset applied");
+    try expect(!isVisible(ui.settings.rows.get(.hnow).?), "no flame height slider for LED");
+    try tap(control(.animate));
+    try expect(!ui.wb.flame.running(), "animation off");
+    try choose(control(.source), 0);
+    try tap(control(.animate));
+    compute();
+    try expect(ui.wb.flame.running() and bench().vals.num(.hnow) == 60, "real candle again, slider follows the design height");
 
     // --- Settings change the film ---
     try tap(ui.refs.lamp_btns[0]);

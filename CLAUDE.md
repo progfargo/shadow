@@ -52,6 +52,9 @@ and conventions come from `~/project/github/eexif` (desktop) and `~/project/repe
   suggestions, information under the drawing, picture loading.
 - `src/views.zig`: the drawings: Image, Film, Light (lamp), with the glass, labels and
   scale bar drawn over the computed pixels.
+- `src/flame.zig`: the candle's light on the table with a flickering flame (five flame
+  points sampled at quarter resolution, enlarged, blurred by the flame width), animated
+  by an LVGL timer at ~12 frames/s; paused while the window is minimized or hidden.
 - `src/parts_view.zig`: the parts drawing on screen, from the same list of shapes as
   the SVG, with the SVG classes' styles (wood hatching computed per circle/rectangle).
 - `src/export.zig`: saved files. Print PNG (actual size, cut border, labels, 50 mm

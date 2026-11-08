@@ -27,6 +27,7 @@ const dp = st.dp;
 const cv = @import("canvas.zig");
 const views = @import("views.zig");
 const parts_view = @import("parts_view.zig");
+pub const flame = @import("flame.zig");
 pub const exporter = @import("export.zig");
 const demo = @import("demo.zig");
 const dialogs = @import("dialogs.zig");
@@ -238,10 +239,12 @@ pub fn init(allocator: Allocator, io_: Io, window: ?*sdl.SDL_Window) void {
     gpa = allocator;
     io = io_;
     dialogs.init(gpa, window);
+    flame.init(window);
     timer = lv.lv_timer_create(onTimer, 30, null);
 }
 
 pub fn deinit() void {
+    flame.stop();
     waitForWorker();
     if (timer) |t| lv.lv_timer_delete(t);
     canvas.destroy();
@@ -338,6 +341,7 @@ pub fn show(product: Product, pg: Page, frame: Frame) !void {
 
 /// Removes the page's drawing (before ui.zig deletes the page widgets).
 pub fn leave() void {
+    flame.stop();
     canvas.destroy();
     views.base_view = null;
     view_box = null;
@@ -390,7 +394,7 @@ pub fn render() void {
     const result = switch (page) {
         .image => views.drawImage(&canvas, b),
         .film => views.drawFilm(&canvas, b),
-        .light => if (b.product == .lamp) views.drawLampLight(&canvas, b) else drawEmpty(),
+        .light => if (b.product == .lamp) views.drawLampLight(&canvas, b) else flame.start(&canvas),
         .parts, .start => drawEmpty(),
     };
     result catch |e| setStatus("Cannot draw: {s}", .{@errorName(e)});
@@ -441,7 +445,13 @@ pub fn changed(id: Id, text: []const u8) void {
         if (refs.save_png_btn) |btn| lv.lv_label_set_text(lv.lv_obj_get_child(btn, 0), exporter.pngButtonLabel(b));
     }
     const f = settings.field(id);
-    if (f.live or id == .tint) {
+    if (f.live) {
+        // the simulation: only the candle's light and the note change
+        updateFlameNote(b);
+        if (page == .light and b.product == .candle and b.candle_res != null) render();
+        return;
+    }
+    if (id == .tint) {
         // only the drawing changes, not the film
         refresh();
         return;
@@ -705,6 +715,8 @@ fn updateInfo() !void {
             try stats.append(a, try std.fmt.allocPrint(a, "Blur from the flame: ~{f} mm near the glass, ~{f} mm at the image edge", .{
                 fmt.num(fmt.jsRound(r.blurAt(ri + 20, 0, p.fwid))), fmt.num(fmt.jsRound(r.blurAt(p.placement.iw / 2 * 0.9, 0, p.fwid))),
             }));
+            syncFlameSlider(b);
+            updateFlameNote(b);
         },
         .lamp => {
             const r = &b.lamp_res.?;
@@ -763,6 +775,49 @@ fn updateInfo() !void {
         }
     }
     _ = addLine(box, "The test print includes a 50 mm scale bar: check it with a ruler.", true);
+}
+
+/// Fits the "Flame height now" slider to the glass; the slider follows the
+/// design height until the user moves it.
+fn syncFlameSlider(b: *Bench) void {
+    const p = &b.candle_res.?.p;
+    const lo = fmt.jsRound(p.gb + p.fhei / 2 + 3);
+    const hi = @max(lo, fmt.jsRound(p.gb + p.gh - p.fhei / 2));
+    settings.setRange(.hnow, lo, hi);
+    if (!b.hnow_touched or p.source != .real) b.vals.setNum(.hnow, p.hd);
+    b.vals.setNum(.hnow, std.math.clamp(fmt.jsRound(b.vals.num(.hnow)), lo, hi));
+}
+
+/// The note under the simulation sliders.
+fn updateFlameNote(b: *const Bench) void {
+    const l = settings.flame_note orelse return;
+    const p = &(b.candle_res orelse return).p;
+    const h = b.vals.num(.hnow);
+    const ri = candle.innerRadius(p, h);
+    var note: std.Io.Writer.Allocating = .init(gpa);
+    defer note.deinit();
+    const w = &note.writer;
+    writeFlameNote(w, p, h, ri) catch return;
+    w.writeByte(0) catch return;
+    lv.lv_label_set_text(l, @ptrCast(note.written().ptr));
+}
+
+fn writeFlameNote(w: *std.Io.Writer, p: *const candle.Params, h: f64, ri: f64) !void {
+    if (p.source != .real) {
+        try w.print("LED candles do not burn down: the light stays at {f} mm and the image stays sharp. " ++
+            "Light on the table starts {f} mm from the glass center.", .{ fmt.num(p.hd), fmt.num(fmt.jsRound(ri)) });
+        return;
+    }
+    try w.print("Flame now {f} mm, design {f} mm. The image is sharpest when they match.", .{ fmt.num(h), fmt.num(p.hd) });
+    // Pattern band: from where the candle stops blocking up to the flame (for the design height)
+    const band_bottom = p.hd - (p.dia / 2) * (p.fhei / 2 + 3) / (p.cd / 2);
+    if (h - (p.fhei / 2 + 3) > p.hd) {
+        try w.writeAll(" The candle still hides the pattern at this height: the image appears as the flame comes down.");
+    } else if (h < band_bottom) {
+        try w.writeAll(" The flame is below the pattern: most of its light goes up, not to the table.");
+    } else {
+        try w.print(" Light on the table starts {f} mm from the glass center.", .{fmt.num(fmt.jsRound(ri))});
+    }
 }
 
 /// What the pattern method means for the file and the result.
