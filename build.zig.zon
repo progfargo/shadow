@@ -1,0 +1,30 @@
+.{
+    .name = .shadow,
+    .version = "0.1.0",
+    .fingerprint = 0x7576822d4819252b, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.17.1",
+    .dependencies = .{
+        .lvgl = .{
+            .url = "https://github.com/lvgl/lvgl/archive/refs/tags/v9.6.0.tar.gz",
+            .hash = "N-V-__8AAEV6mgvY3hT-LmCZsLpBhxSxreIJQ6gb0JVt4I6q",
+        },
+        .sdl = .{
+            .url = "https://github.com/allyourcodebase/SDL/archive/c487899ddf4fb116e090b6c03d1acf190190124c.tar.gz",
+            .hash = "sdl-1.0.12+3.4.18-i4QD0RgPqgDRMeF4ALfge3F7OdExzop5V1Qer82VQuOm",
+        },
+        .stb = .{
+            .url = "https://github.com/nothings/stb/archive/4e9b368bfc071e97206ea5c6adba68dd0cbf8897.tar.gz",
+            .hash = "N-V-__8AAFRGTgBWHIQULKwDqlrvga2AR9enp42AsQ7z-yXN",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "lvconf",
+        "assets",
+        "test",
+        "README.md",
+        "LICENSE",
+    },
+}
