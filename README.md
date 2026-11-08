@@ -20,7 +20,10 @@ and saves the film for printing or laser engraving.
   inside. The film is computed for a design flame height: a real candle's image comes
   into focus as it burns down to that height.
 
-![Candle glass: light on the table](docs/candle_light.png)
+![Candle glass: light on the table with a flickering flame](docs/candle_flame.gif)
+
+The flame sways, rises and pulses; since the glass is close to the flame and the
+table is far, a millimeter of movement moves the image a lot, as with a real candle.
 
 ## Features
 

@@ -424,6 +424,15 @@ fn refresh() void {
 }
 
 /// Draws the page's view into the canvas.
+/// Draws the candle's light at time t (s) without the animation timer
+/// (for the in-app test, which saves frames for the README animation).
+pub fn flameFrame(t: f64) void {
+    const b = cur orelse return;
+    if (b.candle_res == null or canvas.obj == null) return;
+    flame.stop();
+    flame.drawFrame(&canvas, b, t) catch {};
+}
+
 pub fn render() void {
     const b = cur orelse return;
     if (b.computedFilm() == null) return;
