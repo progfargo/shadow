@@ -2,8 +2,7 @@
 
 Desktop design tool for "shadow bottle" products: Zig 0.17.1 + LVGL 9.6 + SDL3
 (allyourcodebase/SDL). The calculation follows the first version of the tool
-(`~/project/shadow`), whose results are the test reference. Platform layer
-and conventions come from `~/project/github/eexif` (desktop) and `~/project/repeto/repeto`.
+(`~/project/shadow`), whose results are the test reference.
 
 ## Working with the user
 
