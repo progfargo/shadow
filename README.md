@@ -97,6 +97,14 @@ zig build -Dtarget=x86_64-windows -Doptimize=ReleaseSmall   # zig-out/bin/shadow
 The result is a single `shadow.exe` that only uses DLLs that come with Windows 10 and
 later.
 
+macOS Application Bundle (on macOS):
+
+```sh
+zig build app -Doptimize=ReleaseSmall   # zig-out/Shadow.app
+```
+
+Creates a signed, standalone `Shadow.app` bundle with high-DPI (Retina) support and app icon.
+
 ## Tests
 
 ```sh
@@ -114,15 +122,21 @@ picture, drags the glass, saves every kind of file and checks them):
 SHADOW_TEST=1 SDL_VIDEO_DRIVER=offscreen SHADOW_TEST_DIR=/tmp/shadow-test ./zig-out/bin/shadow
 ```
 
+On macOS, use `SDL_VIDEO_DRIVER=dummy SDL_RENDER_DRIVER=software` for offscreen test runs:
+
+```sh
+SHADOW_TEST=1 SDL_VIDEO_DRIVER=dummy SDL_RENDER_DRIVER=software SHADOW_TEST_DIR=/tmp/shadow-test ./zig-out/bin/shadow
+```
+
 It prints `test: ok` at the end. Add `SHADOW_SHOT=<dir>` to save screenshots.
 
 ## Platforms
 
 - **Linux:** developed and tested on Linux (X11).
 - **Windows:** builds for Windows (see above), but has not been tested on Windows yet.
-- **macOS:** not built or tested. Nothing in the code is Linux-specific (SDL3 provides
-  the window and the native file dialogs), so `zig build` on a Mac should work.
-  Building for macOS from another OS is not supported, as it needs Apple's SDK.
+- **macOS:** tested on macOS (Apple Silicon arm64). `zig build app -Doptimize=ReleaseSmall`
+  builds and signs a native `Shadow.app` bundle. Building for macOS from another OS is not
+  supported, as it needs Apple's SDK.
 
 Built with [Claude Code](https://claude.com/claude-code). I defined the
 features and requirements, chose the tools (Zig, LVGL, SDL3, stb),

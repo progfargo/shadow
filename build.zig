@@ -102,6 +102,38 @@ pub fn build(b: *std.Build) void {
     run_cmd.addPassthruArgs();
     b.step("run", "Run the app").dependOn(&run_cmd.step);
 
+    // macOS: create Shadow.app bundle
+    const app_step = b.step("app", "Build macOS Application Bundle (zig-out/Shadow.app)");
+    const install_app_bin = b.addInstallArtifact(exe, .{
+        .dest_dir = .{ .override = .{ .custom = "Shadow.app/Contents/MacOS" } },
+    });
+    const install_app_plist = b.addInstallFile(
+        b.path("assets/mac/Info.plist"),
+        "Shadow.app/Contents/Info.plist",
+    );
+    const install_app_icon = b.addInstallFile(
+        b.path("assets/mac/AppIcon.icns"),
+        "Shadow.app/Contents/Resources/AppIcon.icns",
+    );
+    app_step.dependOn(&install_app_bin.step);
+    app_step.dependOn(&install_app_plist.step);
+    app_step.dependOn(&install_app_icon.step);
+
+    if (b.graph.host.result.os.tag == .macos) {
+        const sign_cmd = b.addSystemCommand(&.{
+            "codesign",
+            "--force",
+            "--deep",
+            "--sign",
+            "-",
+        });
+        sign_cmd.addDirectoryArg(.{ .relative = .{ .base = .install_prefix, .sub_path = "Shadow.app" } });
+        sign_cmd.step.dependOn(&install_app_bin.step);
+        sign_cmd.step.dependOn(&install_app_plist.step);
+        sign_cmd.step.dependOn(&install_app_icon.step);
+        app_step.dependOn(&sign_cmd.step);
+    }
+
     // Unit tests of the calculation, with the first version's results
     const core_test_module = b.createModule(.{
         .root_source_file = b.path("src/core/core.zig"),
