@@ -3,3 +3,4 @@
 zig-out/
 # Dependencies from build.zig.zon (zig build downloads them again)
 zig-pkg/
+.DS_Store

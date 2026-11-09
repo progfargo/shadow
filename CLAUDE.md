@@ -24,15 +24,17 @@ Desktop design tool for "shadow bottle" products: Zig 0.17.1 + LVGL 9.6 + SDL3
 - Never drive the real desktop (no xdotool, no opening windows to click around).
   Use the in-app test; it runs offscreen.
 - No system libraries besides libc, so the Windows build stays a single exe.
-- Targets: Linux (tested), Windows (cross-compiled here, not run), macOS (must be
-  built on a Mac; nothing in the code may be Linux-specific).
+- Targets: Linux (tested), Windows (cross-compiled here, not run), macOS (tested on
+  Apple Silicon; builds zig-out/bin/shadow or zig-out/Shadow.app via zig build app).
 
 ## Build and test
 
 - Build: `zig build`. The first build compiles LVGL and SDL (a few minutes).
+- macOS app bundle: `zig build app -Doptimize=ReleaseSmall` (creates signed `zig-out/Shadow.app`).
 - Unit tests: `zig build test` (src/core: the calculation against the first version's results).
 - In-app test (offscreen, DebugAllocator reports leaks):
-  `(ulimit -v 4000000; SHADOW_TEST=1 SDL_VIDEO_DRIVER=offscreen SHADOW_TEST_DIR=<tmp>/testdir SHADOW_SHOT=<tmp>/shots timeout 300 nice ./zig-out/bin/shadow)`
+  Linux: `(ulimit -v 4000000; SHADOW_TEST=1 SDL_VIDEO_DRIVER=offscreen SHADOW_TEST_DIR=<tmp>/testdir SHADOW_SHOT=<tmp>/shots timeout 300 nice ./zig-out/bin/shadow)`
+  macOS: `(SHADOW_TEST=1 SDL_VIDEO_DRIVER=dummy SDL_RENDER_DRIVER=software SHADOW_TEST_DIR=<tmp>/testdir SHADOW_SHOT=<tmp>/shots ./zig-out/bin/shadow)`
   → must end with `test: ok`. Screenshots are BMP; convert to PNG to look at them.
 - After UI changes, look at the screenshots, not only the test result.
 - Speed: a debug build computes a film in ~0.7 s and draws the lamp's light in ~1 s;
